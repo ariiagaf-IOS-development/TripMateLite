@@ -1,4 +1,21 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
-    <elements/>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24512" systemVersion="25D125" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="address" attributeType="String"/>
+        <attribute name="arrivalDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="bookingNumber" attributeType="String"/>
+        <attribute name="checkInDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="checkOutDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="company" attributeType="String"/>
+        <attribute name="departureDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="destination" attributeType="String"/>
+        <attribute name="endDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="from" attributeType="String"/>
+        <attribute name="hotelName" attributeType="String"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="note" attributeType="String"/>
+        <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="to" attributeType="String"/>
+        <attribute name="transportType" attributeType="String"/>
+    </entity>
 </model>

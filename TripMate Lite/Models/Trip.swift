@@ -8,8 +8,8 @@
 import Foundation
 
 struct Trip {
-    let destination: String
-    let startDate: Date
-    let endDate: Date
-    let note: String
+    let id: UUID
+    let basicInfo: BasicTripInfo
+    let transportDetails: TransportDetails
+    let hotelDetails: HotelDetails
 }

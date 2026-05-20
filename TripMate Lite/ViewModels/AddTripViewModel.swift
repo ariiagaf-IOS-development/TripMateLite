@@ -1,0 +1,85 @@
+//
+//  AddTripViewModel.swift
+//  TripMate Lite
+//
+//  Created by Арина Агафонова on 15.05.2026.
+//
+import Foundation
+
+final class AddTripViewModel {
+    
+    enum Result {
+        case success(Trip)
+        case failure(String)
+    }
+    
+    func makeTrip(
+        destination: String,
+        startDate: Date,
+        endDate: Date,
+        note: String,
+        transportType: String,
+        from: String,
+        to: String,
+        departureDate: Date,
+        arrivalDate: Date,
+        company: String,
+        bookingNumber: String,
+        hotelName: String,
+        address: String,
+        checkInDate: Date,
+        checkOutDate: Date
+    ) -> Result {
+        
+        let trimmedDestination = destination.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if trimmedDestination.isEmpty {
+            return .failure("Please enter destination.")
+        }
+        
+        if endDate < startDate {
+            return .failure("End date must be after start date.")
+        }
+        
+        if arrivalDate < departureDate {
+            return .failure("Arrival date must be after departure date.")
+        }
+        
+        if checkOutDate < checkInDate {
+            return .failure("Check-out date must be after check-in date.")
+        }
+        
+        let basicInfo = BasicTripInfo(
+            destination: trimmedDestination,
+            startDate: startDate,
+            endDate: endDate,
+            note: note
+        )
+        
+        let transportDetails = TransportDetails(
+            transportType: transportType,
+            from: from,
+            to: to,
+            departureDate: departureDate,
+            arrivalDate: arrivalDate,
+            company: company,
+            bookingNumber: bookingNumber
+        )
+        
+        let hotelDetails = HotelDetails(
+            hotelName: hotelName,
+            address: address,
+            checkInDate: checkInDate,
+            checkOutDate: checkOutDate
+        )
+        
+        let trip = Trip(
+            id: UUID(),
+            basicInfo: basicInfo,
+            transportDetails: transportDetails,
+            hotelDetails: hotelDetails
+        )
+        
+        return .success(trip)
+    }
+}
