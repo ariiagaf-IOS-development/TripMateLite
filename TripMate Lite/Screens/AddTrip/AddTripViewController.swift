@@ -14,18 +14,24 @@ final class AddTripViewController: UIViewController {
     private enum Layout {
         static let horizontalPadding: CGFloat = 20
         static let topPadding: CGFloat = 24
-        static let bottomPadding: CGFloat = 24
-
-        static let labelToFieldSpacing: CGFloat = 8
-        static let fieldBlockSpacing: CGFloat = 22
-        static let sectionTitleSpacing: CGFloat = 32
-        static let sectionSpacing: CGFloat = 48
-
-        static let buttonHeight: CGFloat = 50
-
-        static let cornerRadius: CGFloat = 12
-        static let scrollToButtonSpacing: CGFloat = 16
+        
+        static let titleFontSize: CGFloat = 32
+        
+        static let sectionSpacing: CGFloat = 32
+        static let sectionTitleFontSize: CGFloat = 13
+        
+        static let cardCornerRadius: CGFloat = 20
+        static let fieldHorizontalPadding: CGFloat = 16
+        static let fieldVerticalPadding: CGFloat = 14
+        static let separatorHeight: CGFloat = 1
+        
+        static let labelFontSize: CGFloat = 12
+        static let inputFontSize: CGFloat = 17
+        static let noteHeight: CGFloat = 100
+        
+        static let buttonHeight: CGFloat = 56
         static let buttonBottomPadding: CGFloat = 20
+        static let buttonCornerRadius: CGFloat = 20
     }
     
     private let viewModel = AddTripViewModel()
@@ -35,236 +41,56 @@ final class AddTripViewController: UIViewController {
     private let stackView = UIStackView()
     
     private let screenTitleLabel = UILabel()
-    private let screenSubtitleLabel = UILabel()
     
-    private let destinationInput = FormTextFieldView(
-        title: "Destination",
-        placeholder: "e.g. Rome"
-    )
+    private let destinationTextField = UITextField()
+    private let noteTextView = UITextView()
     
-    private let transportTypeInput = FormTextFieldView(
-        title: "Transport Type",
-        placeholder: "Plane / Train / Bus / Car"
-    )
-
-    private let fromInput = FormTextFieldView(
-        title: "From",
-        placeholder: "e.g. Belgrade"
-    )
-
-    private let toInput = FormTextFieldView(
-        title: "To",
-        placeholder: "e.g. Rome"
-    )
-
-    private let companyInput = FormTextFieldView(
-        title: "Company",
-        placeholder: "e.g. Air Serbia / FlixBus"
-    )
-
-    private let bookingNumberInput = FormTextFieldView(
-        title: "Booking / Route Number",
-        placeholder: "e.g. JU532 / 1234"
-    )
-
-    private let hotelNameInput = FormTextFieldView(
-        title: "Hotel Name",
-        placeholder: "e.g. Roma Center Hotel"
-    )
-
-    private let addressInput = FormTextFieldView(
-        title: "Address",
-        placeholder: "e.g. Via Roma 12"
-    )
+    private let fromTextField = UITextField()
+    private let toTextField = UITextField()
+    private let airlineTextField = UITextField()
+    private let flightNumberTextField = UITextField()
     
-    private let startDateRow = FormDateRowView(
-        title: "Start Date",
-        mode: .date
-    )
-
-    private let endDateRow = FormDateRowView(
-        title: "End Date",
-        mode: .date
-    )
+    private let hotelNameTextField = UITextField()
+    private let addressTextField = UITextField()
     
-    private let noteInput = FormTextView(
-        title: "Note",
-        placeholder: "Add a note..."
-    )
+    private let startDatePicker = UIDatePicker()
+    private let endDatePicker = UIDatePicker()
+    private let departureDatePicker = UIDatePicker()
+    private let arrivalDatePicker = UIDatePicker()
+    private let checkInDatePicker = UIDatePicker()
+    private let checkOutDatePicker = UIDatePicker()
     
     private let saveButton = UIButton(type: .system)
     
-    private let departureDateRow = FormDateRowView(
-        title: "Departure",
-        mode: .dateAndTime
-    )
-
-    private let arrivalDateRow = FormDateRowView(
-        title: "Arrival",
-        mode: .dateAndTime
-    )
-
-    private let checkInDateRow = FormDateRowView(
-        title: "Check-in",
-        mode: .dateAndTime
-    )
-
-    private let checkOutDateRow = FormDateRowView(
-        title: "Check-out",
-        mode: .dateAndTime
-    )
+    private let notePlaceholder = "First stop of my Eurotrip..."
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        view.backgroundColor = .appBackground
-        title = "TripMate"
         
+        view.backgroundColor = .appBackground
+        navigationItem.title = "TripMate"
+        
+        setupCloseButton()
         setupSaveButton()
         setupScrollView()
         setupStackView()
         setupScreenHeader()
-        setupBasicInfoLabel()
-        setupDestinationTextField()
-        setupDatePickers()
-        setupNoteTextView()
-        setupTransportDetails()
-        setupHotelDetails()
+        setupContent()
         setupKeyboardDismissGesture()
         setupKeyboardObservers()
     }
     
-    private func setupScrollView() {
-        view.addSubview(scrollView)
-        scrollView.addSubview(contentView)
-
-        scrollView.translatesAutoresizingMaskIntoConstraints = false
-        contentView.translatesAutoresizingMaskIntoConstraints = false
-        
-        scrollView.backgroundColor = .clear
-        contentView.backgroundColor = .clear
-        
-        scrollView.alwaysBounceVertical = true
-        scrollView.showsVerticalScrollIndicator = true
-        scrollView.keyboardDismissMode = .interactive
-
-        NSLayoutConstraint.activate([
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
-            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            scrollView.bottomAnchor.constraint(
-                equalTo: saveButton.topAnchor,
-                constant: -Layout.scrollToButtonSpacing
-            ),
-
-            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
-            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
-            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
-            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
-
-            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
-        ])
+    private func setupCloseButton() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "chevron.left"),
+            style: .plain,
+            target: self,
+            action: #selector(closeButtonTapped)
+        )
     }
     
-    private func setupStackView() {
-        contentView.addSubview(stackView)
-
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        stackView.axis = .vertical
-        stackView.spacing = Layout.labelToFieldSpacing
-
-        NSLayoutConstraint.activate([
-            stackView.topAnchor.constraint(
-                equalTo: contentView.topAnchor,
-                constant: Layout.topPadding
-            ),
-            stackView.leadingAnchor.constraint(
-                equalTo: contentView.leadingAnchor,
-                constant: Layout.horizontalPadding
-            ),
-            stackView.trailingAnchor.constraint(
-                equalTo: contentView.trailingAnchor,
-                constant: -Layout.horizontalPadding
-            ),
-            stackView.bottomAnchor.constraint(
-                equalTo: contentView.bottomAnchor,
-                constant: -Layout.bottomPadding
-            )
-        ])
-    }
-    
-    private func setupScreenHeader() {
-        screenTitleLabel.text = "Add Trip"
-        screenTitleLabel.font = .systemFont(ofSize: 32, weight: .bold)
-        screenTitleLabel.textColor = .label
-        
-        screenSubtitleLabel.text = ""
-        
-        stackView.addArrangedSubview(screenTitleLabel)
-        stackView.addArrangedSubview(screenSubtitleLabel)
-        stackView.setCustomSpacing(36, after: screenSubtitleLabel)
-    }
-    
-    private func setupBasicInfoLabel() {
-        addSectionHeader(title: "Basic Trip Info", emoji: "🧳")
-    }
-    
-    private func setupDestinationTextField() {
-        addInputBlock(destinationInput)
-    }
-    
-    private func setupDatePickers() {
-        addDateInputBlock(startDateRow)
-        addDateInputBlock(endDateRow)
-    }
-    
-    private func setupNoteTextView() {
-        stackView.addArrangedSubview(noteInput)
-        stackView.setCustomSpacing(Layout.fieldBlockSpacing, after: noteInput)
-    }
-    
-    private func setupTransportDetails() {
-        stackView.setCustomSpacing(Layout.sectionSpacing, after: noteInput)
-        
-        addSectionHeader(title: "Transport Details", emoji: "🚆")
-        
-        addInputBlock(transportTypeInput)
-        addInputBlock(fromInput)
-        addInputBlock(toInput)
-        
-        addDateInputBlock(departureDateRow)
-        addDateInputBlock(arrivalDateRow)
-        
-        addInputBlock(companyInput)
-        addInputBlock(bookingNumberInput)
-    }
-    
-    private func setupHotelDetails() {
-        stackView.setCustomSpacing(Layout.sectionSpacing, after: bookingNumberInput)
-        
-        addSectionHeader(title: "Hotel Details", emoji: "🏨")
-        
-        addInputBlock(hotelNameInput)
-        addInputBlock(addressInput)
-        
-        addDateInputBlock(checkInDateRow)
-        addDateInputBlock(checkOutDateRow)
-    }
-    
-    private func addInputBlock(_ inputView: FormTextFieldView) {
-        stackView.addArrangedSubview(inputView)
-        stackView.setCustomSpacing(Layout.fieldBlockSpacing, after: inputView)
-    }
-    
-    private func addDateInputBlock(_ dateRowView: FormDateRowView) {
-        stackView.addArrangedSubview(dateRowView)
-        stackView.setCustomSpacing(Layout.fieldBlockSpacing, after: dateRowView)
-    }
-    
-    private func addSectionHeader(title: String, emoji: String) {
-        let headerView = SectionHeaderView(title: title, emoji: emoji)
-        stackView.addArrangedSubview(headerView)
-        stackView.setCustomSpacing(Layout.sectionTitleSpacing, after: headerView)
+    @objc private func closeButtonTapped() {
+        dismiss(animated: true)
     }
     
     private func setupSaveButton() {
@@ -272,10 +98,16 @@ final class AddTripViewController: UIViewController {
         
         saveButton.translatesAutoresizingMaskIntoConstraints = false
         saveButton.setTitle("Save Trip", for: .normal)
-        saveButton.titleLabel?.font = .systemFont(ofSize: 18, weight: .semibold)
+        saveButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .bold)
         saveButton.backgroundColor = .systemBlue
         saveButton.tintColor = .white
-        saveButton.layer.cornerRadius = Layout.cornerRadius
+        saveButton.layer.cornerRadius = Layout.buttonCornerRadius
+        
+        saveButton.layer.shadowColor = UIColor.systemBlue.cgColor
+        saveButton.layer.shadowOpacity = 0.20
+        saveButton.layer.shadowOffset = CGSize(width: 0, height: 6)
+        saveButton.layer.shadowRadius = 14
+        
         saveButton.addTarget(
             self,
             action: #selector(saveButtonTapped),
@@ -297,28 +129,481 @@ final class AddTripViewController: UIViewController {
             ),
             saveButton.heightAnchor.constraint(equalToConstant: Layout.buttonHeight)
         ])
+    }
+    
+    private func setupScrollView() {
+        view.addSubview(scrollView)
+        scrollView.addSubview(contentView)
         
-        view.bringSubviewToFront(saveButton)
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.translatesAutoresizingMaskIntoConstraints = false
+        
+        scrollView.backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.keyboardDismissMode = .interactive
+        
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            scrollView.bottomAnchor.constraint(
+                equalTo: saveButton.topAnchor,
+                constant: -16
+            ),
+            
+            contentView.topAnchor.constraint(equalTo: scrollView.contentLayoutGuide.topAnchor),
+            contentView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
+            contentView.trailingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.trailingAnchor),
+            contentView.bottomAnchor.constraint(equalTo: scrollView.contentLayoutGuide.bottomAnchor),
+            
+            contentView.widthAnchor.constraint(equalTo: scrollView.frameLayoutGuide.widthAnchor)
+        ])
+    }
+    
+    private func setupStackView() {
+        contentView.addSubview(stackView)
+        
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        stackView.axis = .vertical
+        stackView.spacing = Layout.sectionSpacing
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(
+                equalTo: contentView.topAnchor,
+                constant: Layout.topPadding
+            ),
+            stackView.leadingAnchor.constraint(
+                equalTo: contentView.leadingAnchor,
+                constant: Layout.horizontalPadding
+            ),
+            stackView.trailingAnchor.constraint(
+                equalTo: contentView.trailingAnchor,
+                constant: -Layout.horizontalPadding
+            ),
+            stackView.bottomAnchor.constraint(
+                equalTo: contentView.bottomAnchor
+            )
+        ])
+    }
+    
+    private func setupScreenHeader() {
+        screenTitleLabel.text = "Add Trip"
+        screenTitleLabel.font = .systemFont(
+            ofSize: Layout.titleFontSize,
+            weight: .bold
+        )
+        screenTitleLabel.textColor = .label
+        
+        stackView.addArrangedSubview(screenTitleLabel)
+    }
+    
+    private func setupContent() {
+        setupDatePicker(startDatePicker, mode: .date)
+        setupDatePicker(endDatePicker, mode: .date)
+        setupDatePicker(departureDatePicker, mode: .dateAndTime)
+        setupDatePicker(arrivalDatePicker, mode: .dateAndTime)
+        setupDatePicker(checkInDatePicker, mode: .dateAndTime)
+        setupDatePicker(checkOutDatePicker, mode: .dateAndTime)
+        
+        setupNoteTextView()
+        
+        stackView.addArrangedSubview(makeBasicTripInfoSection())
+        stackView.addArrangedSubview(makeFlightDetailsSection())
+        stackView.addArrangedSubview(makeHotelDetailsSection())
+    }
+    
+    private func makeBasicTripInfoSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Basic Trip Info")
+        let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeTextFieldBlock(
+                title: "Destination",
+                textField: destinationTextField,
+                placeholder: "e.g. Rome, Italy"
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeDateBlock(
+                    title: "Start Date",
+                    picker: startDatePicker
+                ),
+                rightView: makeDateBlock(
+                    title: "End Date",
+                    picker: endDatePicker
+                )
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        card.addArrangedSubview(makeNoteBlock())
+        
+        sectionStack.addArrangedSubview(card)
+        return sectionStack
+    }
+    
+    private func makeFlightDetailsSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Flight Details")
+        let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "From",
+                    textField: fromTextField,
+                    placeholder: "BEG"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "To",
+                    textField: toTextField,
+                    placeholder: "FCO"
+                )
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Departure",
+                picker: departureDatePicker
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Arrival",
+                picker: arrivalDatePicker
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "Airline",
+                    textField: airlineTextField,
+                    placeholder: "Air Serbia"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "Flight No.",
+                    textField: flightNumberTextField,
+                    placeholder: "JU532"
+                )
+            )
+        )
+        
+        sectionStack.addArrangedSubview(card)
+        return sectionStack
+    }
+    
+    private func makeHotelDetailsSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Hotel Details")
+        let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeTextFieldBlock(
+                title: "Hotel Name",
+                textField: hotelNameTextField,
+                placeholder: "Roma Center Hotel"
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeTextFieldBlock(
+                title: "Address",
+                textField: addressTextField,
+                placeholder: "Via Roma 12"
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Check-in",
+                picker: checkInDatePicker
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Check-out",
+                picker: checkOutDatePicker
+            )
+        )
+        
+        sectionStack.addArrangedSubview(card)
+        return sectionStack
+    }
+    
+    private func makeSectionStack(title: String) -> UIStackView {
+        let sectionStack = UIStackView()
+        sectionStack.axis = .vertical
+        sectionStack.spacing = 12
+        
+        let titleLabel = UILabel()
+        titleLabel.text = title.uppercased()
+        titleLabel.font = .systemFont(
+            ofSize: Layout.sectionTitleFontSize,
+            weight: .bold
+        )
+        titleLabel.textColor = .secondaryLabel
+        
+        sectionStack.addArrangedSubview(titleLabel)
+        return sectionStack
+    }
+    
+    private func makeCard() -> UIStackView {
+        let card = UIStackView()
+        card.axis = .vertical
+        card.spacing = 0
+        card.backgroundColor = UIColor.cardBackground
+        card.layer.cornerRadius = Layout.cardCornerRadius
+        card.layer.borderWidth = 0.5
+        card.layer.borderColor = UIColor.systemGray5.cgColor
+        card.clipsToBounds = true
+        
+        return card
+    }
+    
+    private func makeTextFieldBlock(
+        title: String,
+        textField: UITextField,
+        placeholder: String
+    ) -> UIView {
+        let container = UIView()
+        
+        let titleLabel = makeFieldTitleLabel(title)
+        
+        textField.placeholder = placeholder
+        textField.borderStyle = .none
+        textField.backgroundColor = .clear
+        textField.font = .systemFont(
+            ofSize: Layout.inputFontSize,
+            weight: .medium
+        )
+        textField.textColor = .label
+        textField.autocapitalizationType = .words
+        
+        container.addSubview(titleLabel)
+        container.addSubview(textField)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        textField.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            
+            textField.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 4
+            ),
+            textField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            textField.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            textField.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            )
+        ])
+        
+        return container
+    }
+    
+    private func makeDateBlock(title: String, picker: UIDatePicker) -> UIView {
+        let container = UIView()
+        
+        let titleLabel = makeFieldTitleLabel(title)
+        
+        picker.contentHorizontalAlignment = .leading
+        
+        container.addSubview(titleLabel)
+        container.addSubview(picker)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        picker.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            
+            picker.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 8
+            ),
+            picker.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            picker.trailingAnchor.constraint(
+                lessThanOrEqualTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            picker.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            )
+        ])
+        
+        return container
+    }
+    
+    private func makeNoteBlock() -> UIView {
+        let container = UIView()
+        
+        let titleLabel = makeFieldTitleLabel("Notes")
+        
+        container.addSubview(titleLabel)
+        container.addSubview(noteTextView)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        noteTextView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            
+            noteTextView.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 6
+            ),
+            noteTextView.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            noteTextView.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            noteTextView.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            ),
+            noteTextView.heightAnchor.constraint(equalToConstant: Layout.noteHeight)
+        ])
+        
+        return container
+    }
+    
+    private func makeTwoColumnRow(
+        leftView: UIView,
+        rightView: UIView
+    ) -> UIStackView {
+        let rowStack = UIStackView()
+        rowStack.axis = .horizontal
+        rowStack.spacing = 0
+        rowStack.distribution = .fill
+        
+        let separator = UIView()
+        separator.backgroundColor = UIColor.systemGray5.withAlphaComponent(0.8)
+        
+        rowStack.addArrangedSubview(leftView)
+        rowStack.addArrangedSubview(separator)
+        rowStack.addArrangedSubview(rightView)
+        
+        separator.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            separator.widthAnchor.constraint(equalToConstant: 0.5),
+            leftView.widthAnchor.constraint(equalTo: rightView.widthAnchor)
+        ])
+        
+        return rowStack
+    }
+    
+    private func makeFieldTitleLabel(_ text: String) -> UILabel {
+        let label = UILabel()
+        label.text = text.uppercased()
+        label.font = .systemFont(
+            ofSize: Layout.labelFontSize,
+            weight: .bold
+        )
+        label.textColor = .secondaryLabel
+        return label
+    }
+    
+    private func makeSeparator() -> UIView {
+        let separator = UIView()
+        separator.backgroundColor = UIColor.systemGray5.withAlphaComponent(0.8)
+        separator.heightAnchor.constraint(equalToConstant: Layout.separatorHeight).isActive = true
+        return separator
+    }
+    
+    private func setupDatePicker(_ picker: UIDatePicker, mode: UIDatePicker.Mode) {
+        picker.datePickerMode = mode
+        picker.preferredDatePickerStyle = .compact
+        picker.tintColor = .systemBlue
+        picker.contentHorizontalAlignment = .leading
+    }
+    
+    private func setupNoteTextView() {
+        noteTextView.text = notePlaceholder
+        noteTextView.textColor = .placeholderText
+        noteTextView.delegate = self
+        noteTextView.font = .systemFont(
+            ofSize: Layout.inputFontSize,
+            weight: .medium
+        )
+        noteTextView.backgroundColor = .clear
+        noteTextView.textContainerInset = .zero
+        noteTextView.textContainer.lineFragmentPadding = 0
     }
     
     @objc private func saveButtonTapped() {
-        let destination = destinationInput.text
-        let startDate = startDateRow.date
-        let endDate = endDateRow.date
-        let note = noteInput.text
+        let destination = destinationTextField.text ?? ""
+        let startDate = startDatePicker.date
+        let endDate = endDatePicker.date
         
-        let transportType = transportTypeInput.text
-        let from = fromInput.text
-        let to = toInput.text
-        let departureDate = departureDateRow.date
-        let arrivalDate = arrivalDateRow.date
-        let company = companyInput.text
-        let bookingNumber = bookingNumberInput.text
+        let note = noteTextView.textColor == .placeholderText
+        ? ""
+        : noteTextView.text ?? ""
         
-        let hotelName = hotelNameInput.text
-        let address = addressInput.text
-        let checkInDate = checkInDateRow.date
-        let checkOutDate = checkOutDateRow.date
+        let transportType = "Flight"
+        let from = fromTextField.text ?? ""
+        let to = toTextField.text ?? ""
+        let departureDate = departureDatePicker.date
+        let arrivalDate = arrivalDatePicker.date
+        let company = airlineTextField.text ?? ""
+        let bookingNumber = flightNumberTextField.text ?? ""
+        
+        let hotelName = hotelNameTextField.text ?? ""
+        let address = addressTextField.text ?? ""
+        let checkInDate = checkInDatePicker.date
+        let checkOutDate = checkOutDatePicker.date
         
         let result = viewModel.makeTrip(
             destination: destination,
@@ -341,8 +626,13 @@ final class AddTripViewController: UIViewController {
         switch result {
         case .success(let trip):
             onTripCreated?(trip)
-            navigationController?.popViewController(animated: true)
-
+            
+            if presentingViewController != nil {
+                dismiss(animated: true)
+            } else {
+                navigationController?.popViewController(animated: true)
+            }
+            
         case .failure(let message):
             showAlert(message: message)
         }
@@ -406,5 +696,22 @@ final class AddTripViewController: UIViewController {
     
     deinit {
         NotificationCenter.default.removeObserver(self)
+    }
+}
+
+extension AddTripViewController: UITextViewDelegate {
+    
+    func textViewDidBeginEditing(_ textView: UITextView) {
+        if textView.textColor == .placeholderText {
+            textView.text = ""
+            textView.textColor = .label
+        }
+    }
+    
+    func textViewDidEndEditing(_ textView: UITextView) {
+        if textView.text.isEmpty {
+            textView.text = notePlaceholder
+            textView.textColor = .placeholderText
+        }
     }
 }
