@@ -45,10 +45,11 @@ final class AddTripViewController: UIViewController {
     private let destinationTextField = UITextField()
     private let noteTextView = UITextView()
     
+    private let transportTypeTextField = UITextField()
     private let fromTextField = UITextField()
     private let toTextField = UITextField()
-    private let airlineTextField = UITextField()
-    private let flightNumberTextField = UITextField()
+    private let companyTextField = UITextField()
+    private let bookingNumberTextField = UITextField()
     
     private let hotelNameTextField = UITextField()
     private let addressTextField = UITextField()
@@ -181,9 +182,7 @@ final class AddTripViewController: UIViewController {
                 equalTo: contentView.trailingAnchor,
                 constant: -Layout.horizontalPadding
             ),
-            stackView.bottomAnchor.constraint(
-                equalTo: contentView.bottomAnchor
-            )
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor)
         ])
     }
     
@@ -209,7 +208,7 @@ final class AddTripViewController: UIViewController {
         setupNoteTextView()
         
         stackView.addArrangedSubview(makeBasicTripInfoSection())
-        stackView.addArrangedSubview(makeFlightDetailsSection())
+        stackView.addArrangedSubview(makeTransportDetailsSection())
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
@@ -247,21 +246,31 @@ final class AddTripViewController: UIViewController {
         return sectionStack
     }
     
-    private func makeFlightDetailsSection() -> UIView {
-        let sectionStack = makeSectionStack(title: "Flight Details")
+    private func makeTransportDetailsSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Transport Details")
         let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeTextFieldBlock(
+                title: "Transport Type",
+                textField: transportTypeTextField,
+                placeholder: "Plane / Train / Bus / Car"
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
         
         card.addArrangedSubview(
             makeTwoColumnRow(
                 leftView: makeTextFieldBlock(
                     title: "From",
                     textField: fromTextField,
-                    placeholder: "BEG"
+                    placeholder: "Belgrade"
                 ),
                 rightView: makeTextFieldBlock(
                     title: "To",
                     textField: toTextField,
-                    placeholder: "FCO"
+                    placeholder: "Rome"
                 )
             )
         )
@@ -289,14 +298,14 @@ final class AddTripViewController: UIViewController {
         card.addArrangedSubview(
             makeTwoColumnRow(
                 leftView: makeTextFieldBlock(
-                    title: "Airline",
-                    textField: airlineTextField,
-                    placeholder: "Air Serbia"
+                    title: "Company",
+                    textField: companyTextField,
+                    placeholder: "Air Serbia / Trenitalia"
                 ),
                 rightView: makeTextFieldBlock(
-                    title: "Flight No.",
-                    textField: flightNumberTextField,
-                    placeholder: "JU532"
+                    title: "Booking No.",
+                    textField: bookingNumberTextField,
+                    placeholder: "JU532 / FR9421"
                 )
             )
         )
@@ -385,7 +394,6 @@ final class AddTripViewController: UIViewController {
         placeholder: String
     ) -> UIView {
         let container = UIView()
-        
         let titleLabel = makeFieldTitleLabel(title)
         
         textField.placeholder = placeholder
@@ -435,7 +443,6 @@ final class AddTripViewController: UIViewController {
     
     private func makeDateBlock(title: String, picker: UIDatePicker) -> UIView {
         let container = UIView()
-        
         let titleLabel = makeFieldTitleLabel(title)
         
         picker.contentHorizontalAlignment = .leading
@@ -480,7 +487,6 @@ final class AddTripViewController: UIViewController {
     
     private func makeNoteBlock() -> UIView {
         let container = UIView()
-        
         let titleLabel = makeFieldTitleLabel("Notes")
         
         container.addSubview(titleLabel)
@@ -592,13 +598,13 @@ final class AddTripViewController: UIViewController {
         ? ""
         : noteTextView.text ?? ""
         
-        let transportType = "Flight"
+        let transportType = transportTypeTextField.text ?? ""
         let from = fromTextField.text ?? ""
         let to = toTextField.text ?? ""
         let departureDate = departureDatePicker.date
         let arrivalDate = arrivalDatePicker.date
-        let company = airlineTextField.text ?? ""
-        let bookingNumber = flightNumberTextField.text ?? ""
+        let company = companyTextField.text ?? ""
+        let bookingNumber = bookingNumberTextField.text ?? ""
         
         let hotelName = hotelNameTextField.text ?? ""
         let address = addressTextField.text ?? ""
