@@ -12,6 +12,7 @@ final class AddTripViewController: UIViewController {
     var onTripCreated: ((Trip) -> Void)?
     
     private struct RouteStepInput {
+        let id = UUID()
         let transportTypeTextField = UITextField()
         let fromTextField = UITextField()
         let toTextField = UITextField()
@@ -281,7 +282,12 @@ final class AddTripViewController: UIViewController {
         let card = makeCard()
         
         if isMultiStepRouteEnabled {
-            card.addArrangedSubview(makeRouteStepHeader(stepNumber: stepNumber))
+            card.addArrangedSubview(
+                makeRouteStepHeader(
+                    stepNumber: stepNumber,
+                    inputID: input.id
+                )
+            )
             card.addArrangedSubview(makeSeparator())
         }
         
@@ -348,7 +354,7 @@ final class AddTripViewController: UIViewController {
         return card
     }
     
-    private func makeRouteStepHeader(stepNumber: Int) -> UIView {
+    private func makeRouteStepHeader(stepNumber: Int, inputID: UUID) -> UIView {
         let container = UIView()
         
         let label = UILabel()
@@ -356,8 +362,32 @@ final class AddTripViewController: UIViewController {
         label.font = .systemFont(ofSize: 15, weight: .bold)
         label.textColor = .label
         
+        let deleteButton = UIButton(type: .system)
+        let trashConfig = UIImage.SymbolConfiguration(
+            pointSize: 14,
+            weight: .semibold
+        )
+
+        deleteButton.setImage(
+            UIImage(systemName: "trash", withConfiguration: trashConfig),
+            for: .normal
+        )
+        deleteButton.tintColor = .systemRed
+        deleteButton.tag = inputID.hashValue
+        
+        deleteButton.addTarget(
+            self,
+            action: #selector(deleteRouteStepTapped(_:)),
+            for: .touchUpInside
+        )
+        
+        deleteButton.isHidden = stepNumber == 1
+        
         container.addSubview(label)
+        container.addSubview(deleteButton)
+        
         label.translatesAutoresizingMaskIntoConstraints = false
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             label.topAnchor.constraint(
@@ -368,14 +398,22 @@ final class AddTripViewController: UIViewController {
                 equalTo: container.leadingAnchor,
                 constant: Layout.fieldHorizontalPadding
             ),
-            label.trailingAnchor.constraint(
-                equalTo: container.trailingAnchor,
-                constant: -Layout.fieldHorizontalPadding
-            ),
             label.bottomAnchor.constraint(
                 equalTo: container.bottomAnchor,
                 constant: -Layout.fieldVerticalPadding
-            )
+            ),
+            
+            deleteButton.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            deleteButton.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            deleteButton.leadingAnchor.constraint(
+                greaterThanOrEqualTo: label.trailingAnchor,
+                constant: 12
+            ),
+            deleteButton.widthAnchor.constraint(equalToConstant: 24),
+            deleteButton.heightAnchor.constraint(equalToConstant: 24)
         ])
         
         return container
@@ -432,6 +470,25 @@ final class AddTripViewController: UIViewController {
         }
         
         addRouteStep()
+    }
+    
+    @objc private func deleteRouteStepTapped(_ sender: UIButton) {
+        guard let index = routeStepInputs.firstIndex(where: { $0.id.hashValue == sender.tag }) else {
+            return
+        }
+        
+        guard index != 0 else {
+            return
+        }
+        
+        routeStepInputs.remove(at: index)
+        
+        if routeStepInputs.count == 1 {
+            isMultiStepRouteEnabled = false
+            routeActionButton.configuration?.title = "Create multi-step route"
+        }
+        
+        rebuildRouteSteps()
     }
     
     private func rebuildRouteSteps() {
