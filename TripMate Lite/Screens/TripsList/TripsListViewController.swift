@@ -338,6 +338,41 @@ extension TripsListViewController: UITableViewDelegate {
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         
+        let trip = trips[indexPath.row]
+        
+        let editAction = UIContextualAction(
+            style: .normal,
+            title: "Edit"
+        ) { [weak self] _, _, completion in
+            guard let self else {
+                completion(false)
+                return
+            }
+            
+            let editViewController = AddTripViewController(trip: trip)
+            
+            editViewController.onTripUpdated = { [weak self] updatedTrip in
+                guard let self else {
+                    return
+                }
+                
+                TripStorage.shared.updateTrip(updatedTrip)
+                self.loadTrips()
+            }
+            
+            let navigationController = UINavigationController(
+                rootViewController: editViewController
+            )
+            
+            navigationController.modalPresentationStyle = .fullScreen
+            self.present(navigationController, animated: true)
+            
+            completion(true)
+        }
+        
+        editAction.backgroundColor = .systemBlue
+        editAction.image = UIImage(systemName: "pencil")
+        
         let deleteAction = UIContextualAction(
             style: .destructive,
             title: "Delete"
@@ -347,7 +382,6 @@ extension TripsListViewController: UITableViewDelegate {
                 return
             }
             
-            let trip = self.trips[indexPath.row]
             TripStorage.shared.deleteTrip(trip)
             
             self.trips.remove(at: indexPath.row)
@@ -357,7 +391,14 @@ extension TripsListViewController: UITableViewDelegate {
             completion(true)
         }
         
-        let configuration = UISwipeActionsConfiguration(actions: [deleteAction])
+        deleteAction.image = UIImage(systemName: "trash")
+
+        let configuration = UISwipeActionsConfiguration(
+            actions: [deleteAction, editAction]
+        )
+
+        configuration.performsFirstActionWithFullSwipe = true
+
         return configuration
     }
 }
