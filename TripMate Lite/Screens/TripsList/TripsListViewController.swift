@@ -382,13 +382,37 @@ extension TripsListViewController: UITableViewDelegate {
                 return
             }
             
-            TripStorage.shared.deleteTrip(trip)
+            let alert = UIAlertController(
+                title: "Delete trip?",
+                message: "This trip will be permanently removed.",
+                preferredStyle: .alert
+            )
             
-            self.trips.remove(at: indexPath.row)
-            tableView.deleteRows(at: [indexPath], with: .automatic)
-            self.updateEmptyState()
+            alert.addAction(
+                UIAlertAction(
+                    title: "Cancel",
+                    style: .cancel
+                ) { _ in
+                    completion(false)
+                }
+            )
             
-            completion(true)
+            alert.addAction(
+                UIAlertAction(
+                    title: "Delete",
+                    style: .destructive
+                ) { _ in
+                    TripStorage.shared.deleteTrip(trip)
+                    
+                    self.trips.remove(at: indexPath.row)
+                    tableView.deleteRows(at: [indexPath], with: .automatic)
+                    self.updateEmptyState()
+                    
+                    completion(true)
+                }
+            )
+            
+            self.present(alert, animated: true)
         }
         
         deleteAction.image = UIImage(systemName: "trash")
