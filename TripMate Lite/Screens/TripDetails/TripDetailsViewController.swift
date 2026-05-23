@@ -9,7 +9,7 @@ import UIKit
 
 final class TripDetailsViewController: UIViewController {
     
-    private let trip: Trip
+    private var trip: Trip
     
     private let titleLabel = UILabel()
     private let dateLabel = UILabel()
@@ -58,9 +58,55 @@ final class TripDetailsViewController: UIViewController {
         view.backgroundColor = .appBackground
         navigationItem.title = "TripMate"
         
+        setupEditButton()
         setupHeader()
         setupScrollView()
         setupStackView()
+        setupDetailsContent()
+    }
+    
+    private func setupEditButton() {
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            title: "Edit",
+            style: .plain,
+            target: self,
+            action: #selector(editButtonTapped)
+        )
+    }
+    
+    @objc private func editButtonTapped() {
+        let editViewController = AddTripViewController(trip: trip)
+        
+        editViewController.onTripUpdated = { [weak self] updatedTrip in
+            guard let self else {
+                return
+            }
+            
+            TripStorage.shared.updateTrip(updatedTrip)
+            self.trip = updatedTrip
+            self.reloadDetails()
+        }
+        
+        let navigationController = UINavigationController(
+            rootViewController: editViewController
+        )
+        
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+    
+    private func reloadDetails() {
+        titleLabel.text = trip.basicInfo.destination
+        
+        let startDate = trip.basicInfo.startDate.tripDateString
+        let endDate = trip.basicInfo.endDate.tripDateString
+        dateLabel.text = "\(startDate) — \(endDate)"
+        
+        stackView.arrangedSubviews.forEach { view in
+            stackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
         setupDetailsContent()
     }
     
@@ -166,6 +212,34 @@ final class TripDetailsViewController: UIViewController {
     
     private func addRouteSection() {
         let routeSteps = trip.routeSteps
+        
+        let hasRouteData = routeSteps.contains { step in
+            !step.transportType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.from.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.bookingNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        if !hasRouteData {
+            let sectionStack = makeSectionStack(
+                iconName: "arrow.triangle.branch",
+                title: "Route"
+            )
+            
+            let card = makeCardView()
+            
+            let emptyLabel = UILabel()
+            emptyLabel.text = "Not specified"
+            emptyLabel.font = .systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+            emptyLabel.textColor = .secondaryLabel
+            emptyLabel.numberOfLines = 0
+            
+            card.addArrangedSubview(emptyLabel)
+            sectionStack.addArrangedSubview(card)
+            stackView.addArrangedSubview(sectionStack)
+            return
+        }
         
         let sectionStack = makeSectionStack(
             iconName: routeSteps.count > 1 ? "arrow.triangle.branch" : trip.transportDetails.iconName,
@@ -346,20 +420,29 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func addHotelSection() {
-        let hotelName = trip.hotelDetails.hotelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let address = trip.hotelDetails.address.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        guard !hotelName.isEmpty || !address.isEmpty else {
-            return
-        }
-        
         let sectionStack = makeSectionStack(
             iconName: "building.2.fill",
             title: "Hotel"
         )
         
         let card = makeCardView()
-              
+        
+        if !trip.hasHotelDetails {
+            let emptyLabel = UILabel()
+            emptyLabel.text = "Not specified"
+            emptyLabel.font = .systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+            emptyLabel.textColor = .secondaryLabel
+            emptyLabel.numberOfLines = 0
+            
+            card.addArrangedSubview(emptyLabel)
+            sectionStack.addArrangedSubview(card)
+            stackView.addArrangedSubview(sectionStack)
+            return
+        }
+        
+        let hotelName = trip.hotelDetails.hotelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = trip.hotelDetails.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         if !hotelName.isEmpty {
             let hotelNameLabel = UILabel()
             hotelNameLabel.text = hotelName
@@ -394,19 +477,21 @@ final class TripDetailsViewController: UIViewController {
             card.addArrangedSubview(addressStack)
         }
         
-        card.addArrangedSubview(makeSeparator())
+        if trip.hasHotelDates {
+            card.addArrangedSubview(makeSeparator())
+            
+            let datesRow = makeTwoColumnRow(
+                leftTitle: "Check-in",
+                leftValue: trip.hotelDetails.checkInDate.tripDateTimeString,
+                rightTitle: "Check-out",
+                rightValue: trip.hotelDetails.checkOutDate.tripDateTimeString,
+                useMutedBackground: true
+            )
+            
+            card.addArrangedSubview(datesRow)
+        }
         
-        let datesRow = makeTwoColumnRow(
-            leftTitle: "Check-in",
-            leftValue: trip.hotelDetails.checkInDate.tripDateTimeString,
-            rightTitle: "Check-out",
-            rightValue: trip.hotelDetails.checkOutDate.tripDateTimeString,
-            useMutedBackground: true
-        )
-        
-        card.addArrangedSubview(datesRow)
         sectionStack.addArrangedSubview(card)
-        
         stackView.addArrangedSubview(sectionStack)
     }
     

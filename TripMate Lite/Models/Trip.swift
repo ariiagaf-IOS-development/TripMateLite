@@ -10,21 +10,21 @@ import Foundation
 struct Trip {
     let id: UUID
     let basicInfo: BasicTripInfo
-    
-    // Old single route field, kept for compatibility
     let transportDetails: TransportDetails
-    
-    // New multi-step route field
     let routeSteps: [TransportSegment]
-    
     let hotelDetails: HotelDetails
+    
+    let hasHotelDetails: Bool
+    let hasHotelDates: Bool
     
     init(
         id: UUID,
         basicInfo: BasicTripInfo,
         transportDetails: TransportDetails,
         routeSteps: [TransportSegment] = [],
-        hotelDetails: HotelDetails
+        hotelDetails: HotelDetails,
+        hasHotelDetails: Bool = false,
+        hasHotelDates: Bool = false
     ) {
         self.id = id
         self.basicInfo = basicInfo
@@ -48,5 +48,7 @@ struct Trip {
         }
         
         self.hotelDetails = hotelDetails
+        self.hasHotelDetails = hasHotelDetails
+        self.hasHotelDates = hasHotelDates
     }
 }

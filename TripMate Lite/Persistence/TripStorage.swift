@@ -44,9 +44,57 @@ final class TripStorage {
         entity.checkInDate = trip.hotelDetails.checkInDate
         entity.checkOutDate = trip.hotelDetails.checkOutDate
         
+        entity.hasHotelDetails = trip.hasHotelDetails
+        entity.hasHotelDates = trip.hasHotelDates
+        
         saveRouteSteps(trip.routeSteps, for: entity)
         
         saveContext()
+    }
+    
+    func updateTrip(_ trip: Trip) {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "id == %@",
+            trip.id as CVarArg
+        )
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            guard let entity = entities.first else {
+                return
+            }
+            
+            entity.destination = trip.basicInfo.destination
+            entity.startDate = trip.basicInfo.startDate
+            entity.endDate = trip.basicInfo.endDate
+            entity.note = trip.basicInfo.note
+            
+            entity.transportType = trip.transportDetails.transportType
+            entity.from = trip.transportDetails.from
+            entity.to = trip.transportDetails.to
+            entity.departureDate = trip.transportDetails.departureDate
+            entity.arrivalDate = trip.transportDetails.arrivalDate
+            entity.company = trip.transportDetails.company
+            entity.bookingNumber = trip.transportDetails.bookingNumber
+            
+            entity.hotelName = trip.hotelDetails.hotelName
+            entity.address = trip.hotelDetails.address
+            entity.checkInDate = trip.hotelDetails.checkInDate
+            entity.checkOutDate = trip.hotelDetails.checkOutDate
+            
+            entity.hasHotelDetails = trip.hasHotelDetails
+            entity.hasHotelDates = trip.hasHotelDates
+            
+            deleteOldRouteSteps(for: entity)
+            saveRouteSteps(trip.routeSteps, for: entity)
+            
+            saveContext()
+        } catch {
+            print("Failed to update trip:", error)
+        }
     }
     
     func fetchTrips() -> [Trip] {
@@ -106,6 +154,16 @@ final class TripStorage {
         }
     }
     
+    private func deleteOldRouteSteps(for tripEntity: TripEntity) {
+        guard let oldSegments = tripEntity.routeSegments as? Set<TransportSegmentEntity> else {
+            return
+        }
+        
+        for segment in oldSegments {
+            context.delete(segment)
+        }
+    }
+    
     private func makeTrip(from entity: TripEntity) -> Trip {
         let basicInfo = BasicTripInfo(
             destination: entity.destination ?? "",
@@ -138,7 +196,9 @@ final class TripStorage {
             basicInfo: basicInfo,
             transportDetails: transportDetails,
             routeSteps: routeSteps,
-            hotelDetails: hotelDetails
+            hotelDetails: hotelDetails,
+            hasHotelDetails: entity.hasHotelDetails,
+            hasHotelDates: entity.hasHotelDates
         )
     }
     

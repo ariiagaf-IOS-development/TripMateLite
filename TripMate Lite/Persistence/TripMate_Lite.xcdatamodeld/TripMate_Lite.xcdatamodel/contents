@@ -23,6 +23,8 @@
         <attribute name="destination" attributeType="String"/>
         <attribute name="endDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="from" attributeType="String"/>
+        <attribute name="hasHotelDates" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="hasHotelDetails" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="hotelName" attributeType="String"/>
         <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="note" attributeType="String"/>

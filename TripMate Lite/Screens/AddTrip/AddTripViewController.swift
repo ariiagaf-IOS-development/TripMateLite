@@ -10,6 +10,9 @@ import UIKit
 final class AddTripViewController: UIViewController {
     
     var onTripCreated: ((Trip) -> Void)?
+    var onTripUpdated: ((Trip) -> Void)?
+    
+    private let editingTrip: Trip?
     
     private struct RouteStepInput {
         let id = UUID()
@@ -54,6 +57,10 @@ final class AddTripViewController: UIViewController {
     private let screenTitleLabel = UILabel()
     
     private let destinationTextField = UITextField()
+    
+    private let destinationErrorLabel = UILabel()
+    private var destinationContainerView: UIView?
+    
     private let noteTextView = UITextView()
     
     private var isNoteEnabled = false
@@ -88,6 +95,16 @@ final class AddTripViewController: UIViewController {
     
     private let notePlaceholder = "First stop of my Eurotrip..."
     
+    init(trip: Trip? = nil) {
+        self.editingTrip = trip
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        self.editingTrip = nil
+        super.init(coder: coder)
+    }
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -100,13 +117,15 @@ final class AddTripViewController: UIViewController {
         setupStackView()
         setupScreenHeader()
         setupContent()
+        populateFieldsIfNeeded()
+        updateSaveButtonState()
         setupKeyboardDismissGesture()
         setupKeyboardObservers()
     }
     
     private func setupCloseButton() {
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "chevron.left"),
+            title: "Cancel",
             style: .plain,
             target: self,
             action: #selector(closeButtonTapped)
@@ -114,14 +133,97 @@ final class AddTripViewController: UIViewController {
     }
     
     @objc private func closeButtonTapped() {
-        dismiss(animated: true)
+        if hasUnsavedChanges() {
+            showDiscardChangesAlert()
+        } else {
+            dismiss(animated: true)
+        }
+    }
+    
+    private func hasUnsavedChanges() -> Bool {
+        let destination = destinationTextField.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        if !destination.isEmpty {
+            return true
+        }
+        
+        if isNoteEnabled && noteTextView.textColor != .placeholderText {
+            let note = noteTextView.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            if !note.isEmpty {
+                return true
+            }
+        }
+        
+        let hasRouteChanges = routeStepInputs.contains { input in
+            let transportType = input.transportTypeTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let from = input.fromTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let to = input.toTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let company = input.companyTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let bookingNumber = input.bookingNumberTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            return !transportType.isEmpty ||
+            !from.isEmpty ||
+            !to.isEmpty ||
+            !company.isEmpty ||
+            !bookingNumber.isEmpty
+        }
+        
+        if hasRouteChanges {
+            return true
+        }
+        
+        if isHotelDetailsEnabled {
+            let hotelName = hotelNameTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let address = addressTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            return !hotelName.isEmpty || !address.isEmpty || isHotelDatesEnabled
+        }
+        
+        return false
+    }
+
+    private func showDiscardChangesAlert() {
+        let alert = UIAlertController(
+            title: "Discard changes?",
+            message: "Your trip details will not be saved.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Discard",
+                style: .destructive
+            ) { [weak self] _ in
+                self?.dismiss(animated: true)
+            }
+        )
+        
+        present(alert, animated: true)
     }
     
     private func setupSaveButton() {
         view.addSubview(saveButton)
         
         saveButton.translatesAutoresizingMaskIntoConstraints = false
-        saveButton.setTitle("Save Trip", for: .normal)
+        let buttonTitle = editingTrip == nil ? "Save Trip" : "Update Trip"
+        saveButton.setTitle(buttonTitle, for: .normal)
         saveButton.titleLabel?.font = .systemFont(ofSize: 17, weight: .bold)
         saveButton.backgroundColor = .systemBlue
         saveButton.tintColor = .white
@@ -210,7 +312,7 @@ final class AddTripViewController: UIViewController {
     }
     
     private func setupScreenHeader() {
-        screenTitleLabel.text = "Add Trip"
+        screenTitleLabel.text = editingTrip == nil ? "Add Trip" : "Edit Trip"
         screenTitleLabel.font = .systemFont(
             ofSize: Layout.titleFontSize,
             weight: .bold
@@ -246,6 +348,97 @@ final class AddTripViewController: UIViewController {
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
+    private func populateFieldsIfNeeded() {
+        guard let trip = editingTrip else {
+            return
+        }
+        
+        destinationTextField.text = trip.basicInfo.destination
+        
+        if !trip.basicInfo.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            isNoteEnabled = true
+            noteTextView.text = trip.basicInfo.note
+            noteTextView.textColor = .label
+            updateNoteSection()
+        }
+        
+        startDatePicker.date = trip.basicInfo.startDate
+        endDatePicker.date = trip.basicInfo.endDate
+        didChangeStartDate = true
+        didChangeEndDate = true
+        
+        populateRouteSteps(from: trip)
+        populateHotelDetails(from: trip)
+    }
+    
+    private func populateRouteSteps(from trip: Trip) {
+        routeStepInputs.removeAll()
+        
+        routeStepsStackView.arrangedSubviews.forEach { view in
+            routeStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        let steps = trip.routeSteps.isEmpty
+        ? [
+            TransportSegment(
+                id: UUID(),
+                transportType: trip.transportDetails.transportType,
+                from: trip.transportDetails.from,
+                to: trip.transportDetails.to,
+                departureDate: trip.transportDetails.departureDate,
+                arrivalDate: trip.transportDetails.arrivalDate,
+                company: trip.transportDetails.company,
+                bookingNumber: trip.transportDetails.bookingNumber
+            )
+        ]
+        : trip.routeSteps
+        
+        isMultiStepRouteEnabled = steps.count > 1
+        routeActionButton.configuration?.title = isMultiStepRouteEnabled
+        ? "Add route step"
+        : "Create multi-step route"
+        
+        for step in steps {
+            let input = RouteStepInput()
+            
+            setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
+            setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+            
+            input.transportTypeTextField.text = step.transportType
+            input.fromTextField.text = step.from
+            input.toTextField.text = step.to
+            input.departureDatePicker.date = step.departureDate
+            input.arrivalDatePicker.date = step.arrivalDate
+            input.companyTextField.text = step.company
+            input.bookingNumberTextField.text = step.bookingNumber
+            
+            routeStepInputs.append(input)
+        }
+        
+        rebuildRouteSteps()
+    }
+    
+    private func populateHotelDetails(from trip: Trip) {
+        isHotelDetailsEnabled = trip.hasHotelDetails
+        isHotelDatesEnabled = trip.hasHotelDates
+        
+        if trip.hasHotelDetails {
+            hotelNameTextField.text = trip.hotelDetails.hotelName
+            addressTextField.text = trip.hotelDetails.address
+        } else {
+            hotelNameTextField.text = ""
+            addressTextField.text = ""
+        }
+        
+        if trip.hasHotelDates {
+            checkInDatePicker.date = trip.hotelDetails.checkInDate
+            checkOutDatePicker.date = trip.hotelDetails.checkOutDate
+        }
+        
+        updateHotelSection()
+    }
+    
     @objc private func startDateChanged() {
         didChangeStartDate = true
     }
@@ -258,13 +451,9 @@ final class AddTripViewController: UIViewController {
         let sectionStack = makeSectionStack(title: "Basic Trip Info")
         let card = makeCard()
         
-        card.addArrangedSubview(
-            makeTextFieldBlock(
-                title: "Destination *",
-                textField: destinationTextField,
-                placeholder: "e.g. Rome"
-            )
-        )
+        let destinationBlock = makeDestinationBlock()
+        destinationContainerView = destinationBlock
+        card.addArrangedSubview(destinationBlock)
         
         card.addArrangedSubview(makeSeparator())
         
@@ -920,6 +1109,101 @@ final class AddTripViewController: UIViewController {
         return container
     }
     
+    private func makeDestinationBlock() -> UIView {
+        let container = UIView()
+        let titleLabel = makeFieldTitleLabel("Destination *")
+        
+        destinationTextField.placeholder = "Final destination"
+        destinationTextField.borderStyle = .none
+        destinationTextField.backgroundColor = .clear
+        destinationTextField.font = .systemFont(
+            ofSize: Layout.inputFontSize,
+            weight: .medium
+        )
+        destinationTextField.textColor = .label
+        destinationTextField.autocapitalizationType = .words
+        
+        destinationTextField.addTarget(
+            self,
+            action: #selector(destinationTextChanged),
+            for: .editingChanged
+        )
+        
+        destinationErrorLabel.text = "Please enter destination."
+        destinationErrorLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        destinationErrorLabel.textColor = .systemRed
+        destinationErrorLabel.isHidden = true
+        
+        container.addSubview(titleLabel)
+        container.addSubview(destinationTextField)
+        container.addSubview(destinationErrorLabel)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        destinationTextField.translatesAutoresizingMaskIntoConstraints = false
+        destinationErrorLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            
+            destinationTextField.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 4
+            ),
+            destinationTextField.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            destinationTextField.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            
+            destinationErrorLabel.topAnchor.constraint(
+                equalTo: destinationTextField.bottomAnchor,
+                constant: 6
+            ),
+            destinationErrorLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            destinationErrorLabel.trailingAnchor.constraint(equalTo: titleLabel.trailingAnchor),
+            destinationErrorLabel.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            )
+        ])
+        
+        return container
+    }
+    
+    @objc private func destinationTextChanged() {
+        hideDestinationError()
+        updateSaveButtonState()
+    }
+
+    private func updateSaveButtonState() {
+        let destination = destinationTextField.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        let isValid = !destination.isEmpty
+        
+        saveButton.isEnabled = isValid
+        saveButton.backgroundColor = isValid ? .systemBlue : .systemGray4
+        saveButton.layer.shadowOpacity = isValid ? 0.20 : 0
+    }
+
+    private func showDestinationError() {
+        destinationErrorLabel.isHidden = false
+        destinationTextField.textColor = .systemRed
+    }
+
+    private func hideDestinationError() {
+        destinationErrorLabel.isHidden = true
+        destinationTextField.textColor = .label
+    }
+    
     private func makeDateBlock(title: String, picker: UIDatePicker) -> UIView {
         let container = UIView()
         let titleLabel = makeFieldTitleLabel(title)
@@ -1150,14 +1434,16 @@ final class AddTripViewController: UIViewController {
     }
     
     @objc private func saveButtonTapped() {
-        let typedDestination = destinationTextField.text ?? ""
-
-        let lastRouteDestination = routeStepInputs.last?.toTextField.text?
+        let typedDestination = destinationTextField.text?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
 
-        let destination = typedDestination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        ? lastRouteDestination
-        : typedDestination
+        guard !typedDestination.isEmpty else {
+            showDestinationError()
+            updateSaveButtonState()
+            return
+        }
+        
+        let destination = destinationTextField.text ?? ""
         
         let routeStartDate = routeStepInputs.first?.departureDatePicker.date
         let routeEndDate = routeStepInputs.last?.arrivalDatePicker.date
@@ -1203,6 +1489,7 @@ final class AddTripViewController: UIViewController {
         let checkOutDate = isHotelDatesEnabled ? checkOutDatePicker.date : Date()
         
         let result = viewModel.makeTrip(
+            tripID: editingTrip?.id ?? UUID(),
             destination: destination,
             startDate: startDate,
             endDate: endDate,
@@ -1225,7 +1512,11 @@ final class AddTripViewController: UIViewController {
         
         switch result {
         case .success(let trip):
-            onTripCreated?(trip)
+            if editingTrip == nil {
+                onTripCreated?(trip)
+            } else {
+                onTripUpdated?(trip)
+            }
             
             if presentingViewController != nil {
                 dismiss(animated: true)
