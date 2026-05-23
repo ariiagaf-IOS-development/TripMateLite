@@ -165,17 +165,108 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func addRouteSection() {
+        let routeSteps = trip.routeSteps
+        
         let sectionStack = makeSectionStack(
-            iconName: trip.transportDetails.iconName,
-            title: trip.transportDetails.displayType
+            iconName: routeSteps.count > 1 ? "arrow.triangle.branch" : trip.transportDetails.iconName,
+            title: routeSteps.count > 1 ? "Route Plan" : trip.transportDetails.displayType
         )
         
         let card = makeCardView()
         
-        let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
-        let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
+        if routeSteps.count > 1 {
+            for (index, step) in routeSteps.enumerated() {
+                addRouteStepView(
+                    to: card,
+                    step: step,
+                    stepNumber: index + 1
+                )
+                
+                if index < routeSteps.count - 1 {
+                    card.addArrangedSubview(makeSeparator())
+                }
+            }
+        } else {
+            let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
+            let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            addRouteView(to: card, from: from, to: to)
+            
+            let gridStack = UIStackView()
+            gridStack.axis = .vertical
+            gridStack.spacing = 18
+            
+            let firstRow = makeTwoColumnRow(
+                leftTitle: "Departure",
+                leftValue: trip.transportDetails.departureDate.tripDateTimeString,
+                rightTitle: "Company",
+                rightValue: trip.transportDetails.company
+            )
+            
+            let secondRow = makeTwoColumnRow(
+                leftTitle: "Transport",
+                leftValue: trip.transportDetails.displayType,
+                rightTitle: "Booking No.",
+                rightValue: trip.transportDetails.bookingNumber
+            )
+            
+            gridStack.addArrangedSubview(firstRow)
+            gridStack.addArrangedSubview(secondRow)
+            card.addArrangedSubview(gridStack)
+        }
         
-        addRouteView(to: card, from: from, to: to)
+        sectionStack.addArrangedSubview(card)
+        stackView.addArrangedSubview(sectionStack)
+    }
+    
+    private func addRouteStepView(
+        to card: UIStackView,
+        step: TransportSegment,
+        stepNumber: Int
+    ) {
+        let stepHeaderStack = UIStackView()
+        stepHeaderStack.axis = .horizontal
+        stepHeaderStack.spacing = 8
+        stepHeaderStack.alignment = .center
+        
+        let iconImageView = UIImageView(image: UIImage(systemName: step.iconName))
+        iconImageView.tintColor = .systemBlue
+        iconImageView.contentMode = .scaleAspectFit
+        
+        let titleLabel = UILabel()
+        titleLabel.text = "Route Step \(stepNumber)"
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        titleLabel.textColor = .label
+        
+        let typeLabel = UILabel()
+        typeLabel.text = step.displayType
+        typeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        typeLabel.textColor = .secondaryLabel
+        
+        stepHeaderStack.addArrangedSubview(iconImageView)
+        
+        let textStack = UIStackView()
+        textStack.axis = .vertical
+        textStack.spacing = 2
+        textStack.addArrangedSubview(titleLabel)
+        textStack.addArrangedSubview(typeLabel)
+        
+        stepHeaderStack.addArrangedSubview(textStack)
+        
+        iconImageView.widthAnchor.constraint(equalToConstant: 22).isActive = true
+        iconImageView.heightAnchor.constraint(equalToConstant: 22).isActive = true
+        
+        card.addArrangedSubview(stepHeaderStack)
+        
+        let from = step.from.trimmingCharacters(in: .whitespacesAndNewlines)
+        let to = step.to.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        addRouteLineView(
+            to: card,
+            from: from,
+            to: to,
+            iconName: step.iconName
+        )
         
         let gridStack = UIStackView()
         gridStack.axis = .vertical
@@ -183,25 +274,75 @@ final class TripDetailsViewController: UIViewController {
         
         let firstRow = makeTwoColumnRow(
             leftTitle: "Departure",
-            leftValue: trip.transportDetails.departureDate.tripDateTimeString,
-            rightTitle: "Company",
-            rightValue: trip.transportDetails.company
+            leftValue: step.departureDate.tripDateTimeString,
+            rightTitle: "Arrival",
+            rightValue: step.arrivalDate.tripDateTimeString
         )
         
         let secondRow = makeTwoColumnRow(
-            leftTitle: "Transport",
-            leftValue: trip.transportDetails.displayType,
+            leftTitle: "Company",
+            leftValue: step.company,
             rightTitle: "Booking No.",
-            rightValue: trip.transportDetails.bookingNumber
+            rightValue: step.bookingNumber
         )
         
         gridStack.addArrangedSubview(firstRow)
         gridStack.addArrangedSubview(secondRow)
         
         card.addArrangedSubview(gridStack)
-        sectionStack.addArrangedSubview(card)
+    }
+    
+    private func addRouteLineView(
+        to card: UIStackView,
+        from: String,
+        to: String,
+        iconName: String
+    ) {
+        let routeStack = UIStackView()
+        routeStack.axis = .horizontal
+        routeStack.alignment = .center
+        routeStack.spacing = 12
         
-        stackView.addArrangedSubview(sectionStack)
+        let fromLabel = makeRoutePlaceLabel(text: from.isEmpty ? "From" : from)
+        let toLabel = makeRoutePlaceLabel(text: to.isEmpty ? "To" : to)
+        
+        let lineContainer = UIView()
+        let lineView = UIView()
+        let routeImageView = UIImageView(image: UIImage(systemName: iconName))
+        
+        lineView.backgroundColor = .systemGray5
+        routeImageView.tintColor = .systemBlue
+        routeImageView.backgroundColor = .cardBackground
+        routeImageView.contentMode = .scaleAspectFit
+        
+        lineContainer.addSubview(lineView)
+        lineContainer.addSubview(routeImageView)
+        
+        lineView.translatesAutoresizingMaskIntoConstraints = false
+        routeImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            lineView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
+            lineView.leadingAnchor.constraint(equalTo: lineContainer.leadingAnchor),
+            lineView.trailingAnchor.constraint(equalTo: lineContainer.trailingAnchor),
+            lineView.heightAnchor.constraint(equalToConstant: Layout.routeLineHeight),
+            
+            routeImageView.centerXAnchor.constraint(equalTo: lineContainer.centerXAnchor),
+            routeImageView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
+            routeImageView.widthAnchor.constraint(equalToConstant: 24),
+            routeImageView.heightAnchor.constraint(equalToConstant: 24),
+            
+            lineContainer.heightAnchor.constraint(equalToConstant: 32)
+        ])
+        
+        routeStack.addArrangedSubview(fromLabel)
+        routeStack.addArrangedSubview(lineContainer)
+        routeStack.addArrangedSubview(toLabel)
+        
+        fromLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
+        toLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
+        
+        card.addArrangedSubview(routeStack)
     }
     
     private func addHotelSection() {
@@ -482,5 +623,33 @@ final class TripDetailsViewController: UIViewController {
         separator.backgroundColor = UIColor.systemGray5
         separator.heightAnchor.constraint(equalToConstant: 1).isActive = true
         return separator
+    }
+}
+
+extension TransportSegment {
+    
+    var displayType: String {
+        let type = transportType.trimmingCharacters(in: .whitespacesAndNewlines)
+        return type.isEmpty ? "Route" : type
+    }
+    
+    var iconName: String {
+        let type = transportType.lowercased()
+        
+        if type.contains("plane") || type.contains("flight") || type.contains("air") {
+            return "airplane"
+        } else if type.contains("train") {
+            return "train.side.front.car"
+        } else if type.contains("bus") {
+            return "bus.fill"
+        } else if type.contains("car") || type.contains("taxi") {
+            return "car.fill"
+        } else if type.contains("ferry") || type.contains("boat") {
+            return "ferry.fill"
+        } else if type.contains("walk") {
+            return "figure.walk"
+        } else {
+            return "arrow.triangle.branch"
+        }
     }
 }

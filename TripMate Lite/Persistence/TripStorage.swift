@@ -44,6 +44,8 @@ final class TripStorage {
         entity.checkInDate = trip.hotelDetails.checkInDate
         entity.checkOutDate = trip.hotelDetails.checkOutDate
         
+        saveRouteSteps(trip.routeSteps, for: entity)
+        
         saveContext()
     }
     
@@ -83,6 +85,27 @@ final class TripStorage {
         }
     }
     
+    private func saveRouteSteps(
+        _ routeSteps: [TransportSegment],
+        for tripEntity: TripEntity
+    ) {
+        for (index, step) in routeSteps.enumerated() {
+            let segmentEntity = TransportSegmentEntity(context: context)
+            
+            segmentEntity.id = step.id
+            segmentEntity.transportType = step.transportType
+            segmentEntity.from = step.from
+            segmentEntity.to = step.to
+            segmentEntity.departureDate = step.departureDate
+            segmentEntity.arrivalDate = step.arrivalDate
+            segmentEntity.company = step.company
+            segmentEntity.bookingNumber = step.bookingNumber
+            segmentEntity.orderIndex = Int16(index)
+            
+            segmentEntity.trip = tripEntity
+        }
+    }
+    
     private func makeTrip(from entity: TripEntity) -> Trip {
         let basicInfo = BasicTripInfo(
             destination: entity.destination ?? "",
@@ -101,6 +124,8 @@ final class TripStorage {
             bookingNumber: entity.bookingNumber ?? ""
         )
         
+        let routeSteps = makeRouteSteps(from: entity)
+        
         let hotelDetails = HotelDetails(
             hotelName: entity.hotelName ?? "",
             address: entity.address ?? "",
@@ -112,8 +137,31 @@ final class TripStorage {
             id: entity.id ?? UUID(),
             basicInfo: basicInfo,
             transportDetails: transportDetails,
+            routeSteps: routeSteps,
             hotelDetails: hotelDetails
         )
+    }
+    
+    private func makeRouteSteps(from entity: TripEntity) -> [TransportSegment] {
+        guard let segmentEntities = entity.routeSegments as? Set<TransportSegmentEntity>,
+              !segmentEntities.isEmpty else {
+            return []
+        }
+        
+        return segmentEntities
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .map { segmentEntity in
+                TransportSegment(
+                    id: segmentEntity.id ?? UUID(),
+                    transportType: segmentEntity.transportType ?? "",
+                    from: segmentEntity.from ?? "",
+                    to: segmentEntity.to ?? "",
+                    departureDate: segmentEntity.departureDate ?? Date(),
+                    arrivalDate: segmentEntity.arrivalDate ?? Date(),
+                    company: segmentEntity.company ?? "",
+                    bookingNumber: segmentEntity.bookingNumber ?? ""
+                )
+            }
     }
     
     private func saveContext() {

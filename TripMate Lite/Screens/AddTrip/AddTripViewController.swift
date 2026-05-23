@@ -384,22 +384,22 @@ final class AddTripViewController: UIViewController {
     private func makeRouteActionButton() -> UIView {
         let container = UIView()
         
-        routeActionButton.setTitle("Create multi-step route", for: .normal)
-        routeActionButton.setTitleColor(.systemBlue, for: .normal)
-        routeActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
-        routeActionButton.contentHorizontalAlignment = .left
-        
-        let image = UIImage(systemName: "plus.circle.fill")
-        routeActionButton.setImage(image, for: .normal)
-        routeActionButton.tintColor = .systemBlue
-        
-        routeActionButton.semanticContentAttribute = .forceLeftToRight
-        routeActionButton.imageEdgeInsets = UIEdgeInsets(
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "Create multi-step route"
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
             top: 0,
-            left: 0,
+            leading: 0,
             bottom: 0,
-            right: 8
+            trailing: 0
         )
+        
+        routeActionButton.configuration = configuration
+        routeActionButton.contentHorizontalAlignment = .left
+        routeActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         routeActionButton.addTarget(
             self,
@@ -424,7 +424,7 @@ final class AddTripViewController: UIViewController {
     @objc private func routeActionButtonTapped() {
         if !isMultiStepRouteEnabled {
             isMultiStepRouteEnabled = true
-            routeActionButton.setTitle("+ Add route step", for: .normal)
+            routeActionButton.setTitle("Add route step", for: .normal)
             
             rebuildRouteSteps()
             addRouteStep()
@@ -733,15 +733,28 @@ final class AddTripViewController: UIViewController {
         ? ""
         : noteTextView.text ?? ""
         
-        let firstRouteStep = routeStepInputs.first
-        
-        let transportType = firstRouteStep?.transportTypeTextField.text ?? ""
-        let from = firstRouteStep?.fromTextField.text ?? ""
-        let to = firstRouteStep?.toTextField.text ?? ""
-        let departureDate = firstRouteStep?.departureDatePicker.date ?? Date()
-        let arrivalDate = firstRouteStep?.arrivalDatePicker.date ?? Date()
-        let company = firstRouteStep?.companyTextField.text ?? ""
-        let bookingNumber = firstRouteStep?.bookingNumberTextField.text ?? ""
+        let routeSteps = routeStepInputs.map { input in
+            TransportSegment(
+                id: UUID(),
+                transportType: input.transportTypeTextField.text ?? "",
+                from: input.fromTextField.text ?? "",
+                to: input.toTextField.text ?? "",
+                departureDate: input.departureDatePicker.date,
+                arrivalDate: input.arrivalDatePicker.date,
+                company: input.companyTextField.text ?? "",
+                bookingNumber: input.bookingNumberTextField.text ?? ""
+            )
+        }
+
+        let firstRouteStep = routeSteps.first
+
+        let transportType = firstRouteStep?.transportType ?? ""
+        let from = firstRouteStep?.from ?? ""
+        let to = firstRouteStep?.to ?? ""
+        let departureDate = firstRouteStep?.departureDate ?? Date()
+        let arrivalDate = firstRouteStep?.arrivalDate ?? Date()
+        let company = firstRouteStep?.company ?? ""
+        let bookingNumber = firstRouteStep?.bookingNumber ?? ""
         
         let hotelName = hotelNameTextField.text ?? ""
         let address = addressTextField.text ?? ""
@@ -760,6 +773,7 @@ final class AddTripViewController: UIViewController {
             arrivalDate: arrivalDate,
             company: company,
             bookingNumber: bookingNumber,
+            routeSteps: routeSteps,
             hotelName: hotelName,
             address: address,
             checkInDate: checkInDate,

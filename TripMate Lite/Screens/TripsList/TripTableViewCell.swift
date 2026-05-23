@@ -66,20 +66,36 @@ final class TripTableViewCell: UITableViewCell {
         let endDate = trip.basicInfo.endDate.tripDateString
         dateLabel.text = "\(startDate) — \(endDate)"
         
-        routeIconImageView.image = UIImage(systemName: trip.transportDetails.iconName)
-        routeTitleLabel.text = trip.transportDetails.displayType.uppercased()
-        
-        let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
-        let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        if from.isEmpty && to.isEmpty {
-            routeLabel.text = "No route details"
-        } else if from.isEmpty {
-            routeLabel.text = to
-        } else if to.isEmpty {
-            routeLabel.text = from
+        let routeSteps = trip.routeSteps
+
+        if routeSteps.count > 1 {
+            routeIconImageView.image = UIImage(systemName: "arrow.triangle.branch")
+            routeTitleLabel.text = "ROUTE"
+            
+            let firstFrom = routeSteps.first?.from.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let finalTo = routeSteps.last?.to.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            if firstFrom.isEmpty && finalTo.isEmpty {
+                routeLabel.text = "\(routeSteps.count) steps"
+            } else {
+                routeLabel.text = "\(firstFrom) → \(finalTo) · \(routeSteps.count) steps"
+            }
         } else {
-            routeLabel.text = "\(from) → \(to)"
+            routeIconImageView.image = UIImage(systemName: trip.transportDetails.iconName)
+            routeTitleLabel.text = trip.transportDetails.displayType.uppercased()
+            
+            let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
+            let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if from.isEmpty && to.isEmpty {
+                routeLabel.text = "No route details"
+            } else if from.isEmpty {
+                routeLabel.text = to
+            } else if to.isEmpty {
+                routeLabel.text = from
+            } else {
+                routeLabel.text = "\(from) → \(to)"
+            }
         }
         
         let hotelName = trip.hotelDetails.hotelName.trimmingCharacters(in: .whitespacesAndNewlines)

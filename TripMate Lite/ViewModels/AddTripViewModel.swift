@@ -4,6 +4,7 @@
 //
 //  Created by Арина Агафонова on 15.05.2026.
 //
+
 import Foundation
 
 final class AddTripViewModel {
@@ -25,6 +26,7 @@ final class AddTripViewModel {
         arrivalDate: Date,
         company: String,
         bookingNumber: String,
+        routeSteps: [TransportSegment],
         hotelName: String,
         address: String,
         checkInDate: Date,
@@ -47,6 +49,12 @@ final class AddTripViewModel {
         
         if checkOutDate < checkInDate {
             return .failure("Check-out date must be after check-in date.")
+        }
+        
+        for step in routeSteps {
+            if step.arrivalDate < step.departureDate {
+                return .failure("Arrival date must be after departure date in all route steps.")
+            }
         }
         
         let basicInfo = BasicTripInfo(
@@ -77,6 +85,7 @@ final class AddTripViewModel {
             id: UUID(),
             basicInfo: basicInfo,
             transportDetails: transportDetails,
+            routeSteps: routeSteps,
             hotelDetails: hotelDetails
         )
         
