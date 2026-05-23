@@ -208,7 +208,7 @@ final class AddTripViewController: UIViewController {
         setupNoteTextView()
         
         stackView.addArrangedSubview(makeBasicTripInfoSection())
-        stackView.addArrangedSubview(makeTransportDetailsSection())
+        stackView.addArrangedSubview(makeRoutePlanSection())
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
@@ -246,8 +246,8 @@ final class AddTripViewController: UIViewController {
         return sectionStack
     }
     
-    private func makeTransportDetailsSection() -> UIView {
-        let sectionStack = makeSectionStack(title: "Transport Details")
+    private func makeRoutePlanSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Route Plan")
         let card = makeCard()
         
         card.addArrangedSubview(
@@ -309,6 +309,9 @@ final class AddTripViewController: UIViewController {
                 )
             )
         )
+        
+        card.addArrangedSubview(makeSeparator())
+        card.addArrangedSubview(makeMultiStepRouteButton())
         
         sectionStack.addArrangedSubview(card)
         return sectionStack
@@ -523,6 +526,69 @@ final class AddTripViewController: UIViewController {
         ])
         
         return container
+    }
+    
+    private func makeMultiStepRouteButton() -> UIView {
+        let container = UIView()
+        
+        let button = UIButton(type: .system)
+        button.setTitle("Create multi-step route", for: .normal)
+        button.setTitleColor(.systemBlue, for: .normal)
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        button.contentHorizontalAlignment = .left
+        
+        let image = UIImage(systemName: "plus.circle.fill")
+        button.setImage(image, for: .normal)
+        button.tintColor = .systemBlue
+        
+        button.semanticContentAttribute = .forceLeftToRight
+        button.imageEdgeInsets = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: 0,
+            right: 8
+        )
+        
+        button.addTarget(
+            self,
+            action: #selector(createMultiStepRouteTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(button)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            button.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            button.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            button.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            button.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            )
+        ])
+        
+        return container
+    }
+    
+    @objc private func createMultiStepRouteTapped() {
+        let alert = UIAlertController(
+            title: "Multi-step route",
+            message: "Next, we will add support for several route steps inside one trip.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
     
     private func makeTwoColumnRow(
