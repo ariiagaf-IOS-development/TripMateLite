@@ -8,8 +8,8 @@ import UIKit
 final class MainTabBarController: UITabBarController {
     
     private enum Layout {
-        static let plusIconSize: CGFloat = 32
-        static let tabIconSize: CGFloat = 24
+        static let plusIconSize: CGFloat = 26
+        static let tabIconSize: CGFloat = 20
     }
     
     override func viewDidLoad() {
@@ -19,6 +19,7 @@ final class MainTabBarController: UITabBarController {
         
         setupTabs()
         setupTabBarAppearance()
+        setupNotifications()
     }
     
     private func setupTabs() {
@@ -130,6 +131,19 @@ final class MainTabBarController: UITabBarController {
         tabBar.isTranslucent = true
     }
     
+    private func setupNotifications() {
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(openAddTripFromNotification),
+            name: .openAddTrip,
+            object: nil
+        )
+    }
+
+    @objc private func openAddTripFromNotification() {
+        openAddTripScreen()
+    }
+    
     func openAddTripScreen() {
         let addTripViewController = AddTripViewController()
         
@@ -150,6 +164,10 @@ final class MainTabBarController: UITabBarController {
         
         navigationController.modalPresentationStyle = .fullScreen
         present(navigationController, animated: true)
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
 

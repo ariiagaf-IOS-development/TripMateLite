@@ -1189,7 +1189,7 @@ final class AddTripViewController: UIViewController {
         
         let isValid = !destination.isEmpty
         
-        saveButton.isEnabled = isValid
+        saveButton.isEnabled = true
         saveButton.backgroundColor = isValid ? .systemBlue : .systemGray4
         saveButton.layer.shadowOpacity = isValid ? 0.20 : 0
     }

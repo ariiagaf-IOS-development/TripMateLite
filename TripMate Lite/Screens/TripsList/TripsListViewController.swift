@@ -26,10 +26,20 @@ final class TripsListViewController: UIViewController {
         static let emptyHintCornerRadius: CGFloat = 18
     }
     
+    private enum TripsFilter {
+        case upcoming
+        case past
+    }
+    
     private var trips: [Trip] = []
+    private var filteredTrips: [Trip] = []
+    private var selectedFilter: TripsFilter = .upcoming
     
     private let titleLabel = UILabel()
+    private let filterSegmentedControl = UISegmentedControl(items: ["Upcoming", "Past"])
     private let tableView = UITableView()
+    
+    private let searchController = UISearchController(searchResultsController: nil)
     
     private let emptyStateView = UIView()
     private let emptyIconContainerView = UIView()
@@ -48,6 +58,8 @@ final class TripsListViewController: UIViewController {
         navigationItem.title = "TripMate"
         
         setupTitleLabel()
+        setupSearchController()
+        setupFilterSegmentedControl()
         setupTableView()
         setupEmptyStateView()
         loadTrips()
@@ -66,6 +78,131 @@ final class TripsListViewController: UIViewController {
         
         tableView.contentInset.bottom = bottomInset
         tableView.verticalScrollIndicatorInsets.bottom = bottomInset
+    }
+    
+    private func setupSearchController() {
+        searchController.searchResultsUpdater = self
+        searchController.obscuresBackgroundDuringPresentation = false
+        searchController.searchBar.placeholder = "Search destination, route, hotel"
+        
+        let searchTextField = searchController.searchBar.searchTextField
+        searchTextField.font = .systemFont(ofSize: 14, weight: .regular)
+        searchTextField.layer.cornerRadius = 14
+        searchTextField.clipsToBounds = true
+        
+        NSLayoutConstraint.activate([
+            searchTextField.heightAnchor.constraint(equalToConstant: 32)
+        ])
+        
+        navigationItem.searchController = searchController
+        navigationItem.hidesSearchBarWhenScrolling = false
+        
+        definesPresentationContext = true
+    }
+    
+    
+    
+    private func setupFilterSegmentedControl() {
+        view.addSubview(filterSegmentedControl)
+        
+        filterSegmentedControl.translatesAutoresizingMaskIntoConstraints = false
+        filterSegmentedControl.selectedSegmentIndex = 0
+        filterSegmentedControl.selectedSegmentTintColor = .systemBlue
+        
+        filterSegmentedControl.setTitleTextAttributes(
+            [
+                .foregroundColor: UIColor.white,
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold)
+            ],
+            for: .selected
+        )
+        
+        filterSegmentedControl.setTitleTextAttributes(
+            [
+                .foregroundColor: UIColor.systemBlue,
+                .font: UIFont.systemFont(ofSize: 14, weight: .semibold)
+            ],
+            for: .normal
+        )
+        
+        filterSegmentedControl.addTarget(
+            self,
+            action: #selector(filterChanged),
+            for: .valueChanged
+        )
+        
+        NSLayoutConstraint.activate([
+            filterSegmentedControl.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 18
+            ),
+            filterSegmentedControl.leadingAnchor.constraint(
+                equalTo: view.leadingAnchor,
+                constant: Layout.horizontalPadding
+            ),
+            filterSegmentedControl.trailingAnchor.constraint(
+                equalTo: view.trailingAnchor,
+                constant: -Layout.horizontalPadding
+            ),
+            filterSegmentedControl.heightAnchor.constraint(equalToConstant: 36)
+        ])
+    }
+    
+    @objc private func filterChanged() {
+        selectedFilter = filterSegmentedControl.selectedSegmentIndex == 0
+        ? .upcoming
+        : .past
+        
+        applyFilter()
+    }
+
+    private func applyFilter() {
+        let today = Calendar.current.startOfDay(for: Date())
+        
+        let tripsByDate: [Trip]
+        
+        switch selectedFilter {
+        case .upcoming:
+            tripsByDate = trips.filter {
+                Calendar.current.startOfDay(for: $0.basicInfo.endDate) >= today
+            }
+            
+        case .past:
+            tripsByDate = trips.filter {
+                Calendar.current.startOfDay(for: $0.basicInfo.endDate) < today
+            }
+        }
+        
+        let searchText = searchController.searchBar.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased() ?? ""
+        
+        if searchText.isEmpty {
+            filteredTrips = tripsByDate
+        } else {
+            filteredTrips = tripsByDate.filter { trip in
+                let destination = trip.basicInfo.destination.lowercased()
+                let note = trip.basicInfo.note.lowercased()
+                let hotel = trip.hotelDetails.hotelName.lowercased()
+                let address = trip.hotelDetails.address.lowercased()
+                
+                let routeText = trip.routeSteps
+                    .map {
+                        "\($0.transportType) \($0.from) \($0.to) \($0.company) \($0.bookingNumber)"
+                    }
+                    .joined(separator: " ")
+                    .lowercased()
+                
+                return destination.contains(searchText)
+                || note.contains(searchText)
+                || hotel.contains(searchText)
+                || address.contains(searchText)
+                || routeText.contains(searchText)
+            }
+        }
+        
+        tableView.reloadData()
+        updateEmptyState()
     }
     
     private func setupTitleLabel() {
@@ -113,7 +250,7 @@ final class TripsListViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             tableView.topAnchor.constraint(
-                equalTo: titleLabel.bottomAnchor,
+                equalTo: filterSegmentedControl.bottomAnchor,
                 constant: Layout.titleToTableSpacing
             ),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -201,7 +338,10 @@ final class TripsListViewController: UIViewController {
                 equalTo: view.trailingAnchor,
                 constant: -Layout.emptyStateHorizontalPadding
             ),
-            emptyStateView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            emptyStateView.centerYAnchor.constraint(
+                equalTo: tableView.centerYAnchor,
+                constant: -60
+            ),
             
             emptyIconContainerView.topAnchor.constraint(equalTo: emptyStateView.topAnchor),
             emptyIconContainerView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
@@ -275,24 +415,51 @@ final class TripsListViewController: UIViewController {
     }
     
     @objc private func emptyStateTapped() {
-        guard let mainTabBarController = tabBarController as? MainTabBarController else {
+        let searchText = searchController.searchBar.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        
+        if !searchText.isEmpty {
+            searchController.searchBar.text = ""
+            searchController.isActive = false
+            applyFilter()
             return
         }
         
-        mainTabBarController.openAddTripScreen()
+        NotificationCenter.default.post(name: .openAddTrip, object: nil)
     }
     
     func loadTrips() {
         trips = TripStorage.shared.fetchTrips()
-        tableView.reloadData()
-        updateEmptyState()
+        applyFilter()
     }
     
     private func updateEmptyState() {
-        let isEmpty = trips.isEmpty
+        let isEmpty = filteredTrips.isEmpty
+        let searchText = searchController.searchBar.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let isSearching = !searchText.isEmpty
         
         emptyStateView.isHidden = !isEmpty
         tableView.isHidden = isEmpty
+        
+        if isSearching {
+            emptyTitleLabel.text = "No results found"
+            emptySubtitleLabel.text = "Try another destination, route, hotel, or note."
+            emptyHintLabel.text = "Clear search"
+            return
+        }
+        
+        switch selectedFilter {
+        case .upcoming:
+            emptyTitleLabel.text = "No upcoming trips"
+            emptySubtitleLabel.text = "Add your next trip and keep the route, stay, and notes in one place."
+            emptyHintLabel.text = "Tap + to add a trip"
+            
+        case .past:
+            emptyTitleLabel.text = "No past trips"
+            emptySubtitleLabel.text = "Completed trips will appear here after their end date."
+            emptyHintLabel.text = "Tap + to add a trip"
+        }
     }
 }
 
@@ -302,7 +469,7 @@ extension TripsListViewController: UITableViewDataSource {
         _ tableView: UITableView,
         numberOfRowsInSection section: Int
     ) -> Int {
-        trips.count
+        filteredTrips.count
     }
     
     func tableView(
@@ -314,7 +481,7 @@ extension TripsListViewController: UITableViewDataSource {
             for: indexPath
         ) as? TripTableViewCell
         
-        let trip = trips[indexPath.row]
+        let trip = filteredTrips[indexPath.row]
         cell?.configure(with: trip)
         
         return cell ?? UITableViewCell()
@@ -327,7 +494,7 @@ extension TripsListViewController: UITableViewDelegate {
         _ tableView: UITableView,
         didSelectRowAt indexPath: IndexPath
     ) {
-        let trip = trips[indexPath.row]
+        let trip = filteredTrips[indexPath.row]
         let detailsViewController = TripDetailsViewController(trip: trip)
         
         navigationController?.pushViewController(detailsViewController, animated: true)
@@ -338,7 +505,7 @@ extension TripsListViewController: UITableViewDelegate {
         trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
     ) -> UISwipeActionsConfiguration? {
         
-        let trip = trips[indexPath.row]
+        let trip = filteredTrips[indexPath.row]
         
         let editAction = UIContextualAction(
             style: .normal,
@@ -403,11 +570,7 @@ extension TripsListViewController: UITableViewDelegate {
                     style: .destructive
                 ) { _ in
                     TripStorage.shared.deleteTrip(trip)
-                    
-                    self.trips.remove(at: indexPath.row)
-                    tableView.deleteRows(at: [indexPath], with: .automatic)
-                    self.updateEmptyState()
-                    
+                    self.loadTrips()
                     completion(true)
                 }
             )
@@ -425,4 +588,15 @@ extension TripsListViewController: UITableViewDelegate {
 
         return configuration
     }
+}
+
+extension TripsListViewController: UISearchResultsUpdating {
+    
+    func updateSearchResults(for searchController: UISearchController) {
+        applyFilter()
+    }
+}
+
+extension Notification.Name {
+    static let openAddTrip = Notification.Name("openAddTrip")
 }
