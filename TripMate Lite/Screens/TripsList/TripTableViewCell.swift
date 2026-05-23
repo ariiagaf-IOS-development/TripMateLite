@@ -38,9 +38,9 @@ final class TripTableViewCell: UITableViewCell {
     private let destinationLabel = UILabel()
     private let dateLabel = UILabel()
     
-    private let flightIconContainerView = UIView()
-    private let flightIconImageView = UIImageView()
-    private let flightTitleLabel = UILabel()
+    private let routeIconContainerView = UIView()
+    private let routeIconImageView = UIImageView()
+    private let routeTitleLabel = UILabel()
     private let routeLabel = UILabel()
     
     private let hotelIconContainerView = UIView()
@@ -66,11 +66,18 @@ final class TripTableViewCell: UITableViewCell {
         let endDate = trip.basicInfo.endDate.tripDateString
         dateLabel.text = "\(startDate) — \(endDate)"
         
+        routeIconImageView.image = UIImage(systemName: trip.transportDetails.iconName)
+        routeTitleLabel.text = trip.transportDetails.displayType.uppercased()
+        
         let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
         let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
         
         if from.isEmpty && to.isEmpty {
-            routeLabel.text = "No flight details"
+            routeLabel.text = "No route details"
+        } else if from.isEmpty {
+            routeLabel.text = to
+        } else if to.isEmpty {
+            routeLabel.text = from
         } else {
             routeLabel.text = "\(from) → \(to)"
         }
@@ -106,9 +113,9 @@ final class TripTableViewCell: UITableViewCell {
         dateLabel.textColor = .secondaryLabel
         
         setupIconContainer(
-            flightIconContainerView,
-            imageView: flightIconImageView,
-            systemName: "airplane"
+            routeIconContainerView,
+            imageView: routeIconImageView,
+            systemName: "arrow.triangle.branch"
         )
         
         setupIconContainer(
@@ -117,7 +124,7 @@ final class TripTableViewCell: UITableViewCell {
             systemName: "building.2.fill"
         )
         
-        setupInfoTitleLabel(flightTitleLabel, text: "Flight")
+        setupInfoTitleLabel(routeTitleLabel, text: "Route")
         setupInfoTitleLabel(hotelTitleLabel, text: "Hotel")
         
         setupInfoValueLabel(routeLabel)
@@ -130,9 +137,9 @@ final class TripTableViewCell: UITableViewCell {
         containerView.addSubview(destinationLabel)
         containerView.addSubview(dateLabel)
         
-        let flightRow = makeInfoRow(
-            iconContainerView: flightIconContainerView,
-            titleLabel: flightTitleLabel,
+        let routeRow = makeInfoRow(
+            iconContainerView: routeIconContainerView,
+            titleLabel: routeTitleLabel,
             valueLabel: routeLabel
         )
         
@@ -142,7 +149,7 @@ final class TripTableViewCell: UITableViewCell {
             valueLabel: hotelNameLabel
         )
         
-        let infoStackView = UIStackView(arrangedSubviews: [flightRow, hotelRow])
+        let infoStackView = UIStackView(arrangedSubviews: [routeRow, hotelRow])
         infoStackView.axis = .vertical
         infoStackView.spacing = Layout.infoRowSpacing
         

@@ -114,6 +114,7 @@ final class TripDetailsViewController: UIViewController {
         
         scrollView.backgroundColor = .clear
         contentView.backgroundColor = .clear
+        scrollView.showsVerticalScrollIndicator = false
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(
@@ -158,15 +159,15 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func setupDetailsContent() {
-        addFlightSection()
+        addRouteSection()
         addHotelSection()
         addNoteSectionIfNeeded()
     }
     
-    private func addFlightSection() {
+    private func addRouteSection() {
         let sectionStack = makeSectionStack(
-            iconName: "airplane",
-            title: "Flight"
+            iconName: trip.transportDetails.iconName,
+            title: trip.transportDetails.displayType
         )
         
         let card = makeCardView()
@@ -183,13 +184,15 @@ final class TripDetailsViewController: UIViewController {
         let firstRow = makeTwoColumnRow(
             leftTitle: "Departure",
             leftValue: trip.transportDetails.departureDate.tripDateTimeString,
-            rightTitle: "Airline",
+            rightTitle: "Company",
             rightValue: trip.transportDetails.company
         )
         
-        let secondRow = makeSingleInfoBlock(
-            title: "Flight Number",
-            value: trip.transportDetails.bookingNumber
+        let secondRow = makeTwoColumnRow(
+            leftTitle: "Transport",
+            leftValue: trip.transportDetails.displayType,
+            rightTitle: "Booking No.",
+            rightValue: trip.transportDetails.bookingNumber
         )
         
         gridStack.addArrangedSubview(firstRow)
@@ -246,8 +249,7 @@ final class TripDetailsViewController: UIViewController {
             card.addArrangedSubview(addressStack)
         }
         
-        let separator = makeSeparator()
-        card.addArrangedSubview(separator)
+        card.addArrangedSubview(makeSeparator())
         
         let datesRow = makeTwoColumnRow(
             leftTitle: "Check-in",
@@ -347,18 +349,20 @@ final class TripDetailsViewController: UIViewController {
         
         let lineContainer = UIView()
         let lineView = UIView()
-        let planeImageView = UIImageView(image: UIImage(systemName: "airplane"))
+        let routeImageView = UIImageView(
+            image: UIImage(systemName: trip.transportDetails.iconName)
+        )
         
         lineView.backgroundColor = .systemGray5
-        planeImageView.tintColor = .systemBlue
-        planeImageView.backgroundColor = .cardBackground
-        planeImageView.contentMode = .scaleAspectFit
+        routeImageView.tintColor = .systemBlue
+        routeImageView.backgroundColor = .cardBackground
+        routeImageView.contentMode = .scaleAspectFit
         
         lineContainer.addSubview(lineView)
-        lineContainer.addSubview(planeImageView)
+        lineContainer.addSubview(routeImageView)
         
         lineView.translatesAutoresizingMaskIntoConstraints = false
-        planeImageView.translatesAutoresizingMaskIntoConstraints = false
+        routeImageView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             lineView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
@@ -366,10 +370,10 @@ final class TripDetailsViewController: UIViewController {
             lineView.trailingAnchor.constraint(equalTo: lineContainer.trailingAnchor),
             lineView.heightAnchor.constraint(equalToConstant: Layout.routeLineHeight),
             
-            planeImageView.centerXAnchor.constraint(equalTo: lineContainer.centerXAnchor),
-            planeImageView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
-            planeImageView.widthAnchor.constraint(equalToConstant: 24),
-            planeImageView.heightAnchor.constraint(equalToConstant: 24),
+            routeImageView.centerXAnchor.constraint(equalTo: lineContainer.centerXAnchor),
+            routeImageView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
+            routeImageView.widthAnchor.constraint(equalToConstant: 24),
+            routeImageView.heightAnchor.constraint(equalToConstant: 24),
             
             lineContainer.heightAnchor.constraint(equalToConstant: 32)
         ])
@@ -425,10 +429,6 @@ final class TripDetailsViewController: UIViewController {
         rowStack.addArrangedSubview(rightBlock)
         
         return rowStack
-    }
-    
-    private func makeSingleInfoBlock(title: String, value: String) -> UIView {
-        makeInfoBlock(title: title, value: value, useMutedBackground: false)
     }
     
     private func makeInfoBlock(

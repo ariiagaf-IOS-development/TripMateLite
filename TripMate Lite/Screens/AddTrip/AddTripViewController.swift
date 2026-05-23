@@ -11,6 +11,16 @@ final class AddTripViewController: UIViewController {
     
     var onTripCreated: ((Trip) -> Void)?
     
+    private struct RouteStepInput {
+        let transportTypeTextField = UITextField()
+        let fromTextField = UITextField()
+        let toTextField = UITextField()
+        let departureDatePicker = UIDatePicker()
+        let arrivalDatePicker = UIDatePicker()
+        let companyTextField = UITextField()
+        let bookingNumberTextField = UITextField()
+    }
+    
     private enum Layout {
         static let horizontalPadding: CGFloat = 20
         static let topPadding: CGFloat = 24
@@ -45,19 +55,16 @@ final class AddTripViewController: UIViewController {
     private let destinationTextField = UITextField()
     private let noteTextView = UITextView()
     
-    private let transportTypeTextField = UITextField()
-    private let fromTextField = UITextField()
-    private let toTextField = UITextField()
-    private let companyTextField = UITextField()
-    private let bookingNumberTextField = UITextField()
+    private var routeStepInputs: [RouteStepInput] = []
+    private let routeStepsStackView = UIStackView()
+    private let routeActionButton = UIButton(type: .system)
+    private var isMultiStepRouteEnabled = false
     
     private let hotelNameTextField = UITextField()
     private let addressTextField = UITextField()
     
     private let startDatePicker = UIDatePicker()
     private let endDatePicker = UIDatePicker()
-    private let departureDatePicker = UIDatePicker()
-    private let arrivalDatePicker = UIDatePicker()
     private let checkInDatePicker = UIDatePicker()
     private let checkOutDatePicker = UIDatePicker()
     
@@ -200,8 +207,6 @@ final class AddTripViewController: UIViewController {
     private func setupContent() {
         setupDatePicker(startDatePicker, mode: .date)
         setupDatePicker(endDatePicker, mode: .date)
-        setupDatePicker(departureDatePicker, mode: .dateAndTime)
-        setupDatePicker(arrivalDatePicker, mode: .dateAndTime)
         setupDatePicker(checkInDatePicker, mode: .dateAndTime)
         setupDatePicker(checkOutDatePicker, mode: .dateAndTime)
         
@@ -248,12 +253,42 @@ final class AddTripViewController: UIViewController {
     
     private func makeRoutePlanSection() -> UIView {
         let sectionStack = makeSectionStack(title: "Route Plan")
+        
+        routeStepsStackView.axis = .vertical
+        routeStepsStackView.spacing = 12
+        
+        addRouteStep()
+        
+        sectionStack.addArrangedSubview(routeStepsStackView)
+        sectionStack.addArrangedSubview(makeRouteActionButton())
+        
+        return sectionStack
+    }
+    
+    private func addRouteStep() {
+        let input = RouteStepInput()
+        setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
+        setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+        
+        routeStepInputs.append(input)
+        
+        let stepNumber = routeStepInputs.count
+        let stepCard = makeRouteStepCard(input: input, stepNumber: stepNumber)
+        routeStepsStackView.addArrangedSubview(stepCard)
+    }
+    
+    private func makeRouteStepCard(input: RouteStepInput, stepNumber: Int) -> UIView {
         let card = makeCard()
+        
+        if isMultiStepRouteEnabled {
+            card.addArrangedSubview(makeRouteStepHeader(stepNumber: stepNumber))
+            card.addArrangedSubview(makeSeparator())
+        }
         
         card.addArrangedSubview(
             makeTextFieldBlock(
                 title: "Transport Type",
-                textField: transportTypeTextField,
+                textField: input.transportTypeTextField,
                 placeholder: "Plane / Train / Bus / Car"
             )
         )
@@ -264,12 +299,12 @@ final class AddTripViewController: UIViewController {
             makeTwoColumnRow(
                 leftView: makeTextFieldBlock(
                     title: "From",
-                    textField: fromTextField,
+                    textField: input.fromTextField,
                     placeholder: "Belgrade"
                 ),
                 rightView: makeTextFieldBlock(
                     title: "To",
-                    textField: toTextField,
+                    textField: input.toTextField,
                     placeholder: "Rome"
                 )
             )
@@ -280,7 +315,7 @@ final class AddTripViewController: UIViewController {
         card.addArrangedSubview(
             makeDateBlock(
                 title: "Departure",
-                picker: departureDatePicker
+                picker: input.departureDatePicker
             )
         )
         
@@ -289,7 +324,7 @@ final class AddTripViewController: UIViewController {
         card.addArrangedSubview(
             makeDateBlock(
                 title: "Arrival",
-                picker: arrivalDatePicker
+                picker: input.arrivalDatePicker
             )
         )
         
@@ -299,22 +334,119 @@ final class AddTripViewController: UIViewController {
             makeTwoColumnRow(
                 leftView: makeTextFieldBlock(
                     title: "Company",
-                    textField: companyTextField,
+                    textField: input.companyTextField,
                     placeholder: "Air Serbia / Trenitalia"
                 ),
                 rightView: makeTextFieldBlock(
                     title: "Booking No.",
-                    textField: bookingNumberTextField,
+                    textField: input.bookingNumberTextField,
                     placeholder: "JU532 / FR9421"
                 )
             )
         )
         
-        card.addArrangedSubview(makeSeparator())
-        card.addArrangedSubview(makeMultiStepRouteButton())
+        return card
+    }
+    
+    private func makeRouteStepHeader(stepNumber: Int) -> UIView {
+        let container = UIView()
         
-        sectionStack.addArrangedSubview(card)
-        return sectionStack
+        let label = UILabel()
+        label.text = "Route Step \(stepNumber)"
+        label.font = .systemFont(ofSize: 15, weight: .bold)
+        label.textColor = .label
+        
+        container.addSubview(label)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            label.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            label.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            label.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            )
+        ])
+        
+        return container
+    }
+    
+    private func makeRouteActionButton() -> UIView {
+        let container = UIView()
+        
+        routeActionButton.setTitle("Create multi-step route", for: .normal)
+        routeActionButton.setTitleColor(.systemBlue, for: .normal)
+        routeActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        routeActionButton.contentHorizontalAlignment = .left
+        
+        let image = UIImage(systemName: "plus.circle.fill")
+        routeActionButton.setImage(image, for: .normal)
+        routeActionButton.tintColor = .systemBlue
+        
+        routeActionButton.semanticContentAttribute = .forceLeftToRight
+        routeActionButton.imageEdgeInsets = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: 0,
+            right: 8
+        )
+        
+        routeActionButton.addTarget(
+            self,
+            action: #selector(routeActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(routeActionButton)
+        routeActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            routeActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            routeActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            routeActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            routeActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            routeActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+    
+    @objc private func routeActionButtonTapped() {
+        if !isMultiStepRouteEnabled {
+            isMultiStepRouteEnabled = true
+            routeActionButton.setTitle("+ Add route step", for: .normal)
+            
+            rebuildRouteSteps()
+            addRouteStep()
+            return
+        }
+        
+        addRouteStep()
+    }
+    
+    private func rebuildRouteSteps() {
+        routeStepsStackView.arrangedSubviews.forEach { view in
+            routeStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        for (index, input) in routeStepInputs.enumerated() {
+            let card = makeRouteStepCard(
+                input: input,
+                stepNumber: index + 1
+            )
+            routeStepsStackView.addArrangedSubview(card)
+        }
     }
     
     private func makeHotelDetailsSection() -> UIView {
@@ -528,69 +660,6 @@ final class AddTripViewController: UIViewController {
         return container
     }
     
-    private func makeMultiStepRouteButton() -> UIView {
-        let container = UIView()
-        
-        let button = UIButton(type: .system)
-        button.setTitle("Create multi-step route", for: .normal)
-        button.setTitleColor(.systemBlue, for: .normal)
-        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
-        button.contentHorizontalAlignment = .left
-        
-        let image = UIImage(systemName: "plus.circle.fill")
-        button.setImage(image, for: .normal)
-        button.tintColor = .systemBlue
-        
-        button.semanticContentAttribute = .forceLeftToRight
-        button.imageEdgeInsets = UIEdgeInsets(
-            top: 0,
-            left: 0,
-            bottom: 0,
-            right: 8
-        )
-        
-        button.addTarget(
-            self,
-            action: #selector(createMultiStepRouteTapped),
-            for: .touchUpInside
-        )
-        
-        container.addSubview(button)
-        button.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            button.topAnchor.constraint(
-                equalTo: container.topAnchor,
-                constant: Layout.fieldVerticalPadding
-            ),
-            button.leadingAnchor.constraint(
-                equalTo: container.leadingAnchor,
-                constant: Layout.fieldHorizontalPadding
-            ),
-            button.trailingAnchor.constraint(
-                equalTo: container.trailingAnchor,
-                constant: -Layout.fieldHorizontalPadding
-            ),
-            button.bottomAnchor.constraint(
-                equalTo: container.bottomAnchor,
-                constant: -Layout.fieldVerticalPadding
-            )
-        ])
-        
-        return container
-    }
-    
-    @objc private func createMultiStepRouteTapped() {
-        let alert = UIAlertController(
-            title: "Multi-step route",
-            message: "Next, we will add support for several route steps inside one trip.",
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "OK", style: .default))
-        present(alert, animated: true)
-    }
-    
     private func makeTwoColumnRow(
         leftView: UIView,
         rightView: UIView
@@ -664,13 +733,15 @@ final class AddTripViewController: UIViewController {
         ? ""
         : noteTextView.text ?? ""
         
-        let transportType = transportTypeTextField.text ?? ""
-        let from = fromTextField.text ?? ""
-        let to = toTextField.text ?? ""
-        let departureDate = departureDatePicker.date
-        let arrivalDate = arrivalDatePicker.date
-        let company = companyTextField.text ?? ""
-        let bookingNumber = bookingNumberTextField.text ?? ""
+        let firstRouteStep = routeStepInputs.first
+        
+        let transportType = firstRouteStep?.transportTypeTextField.text ?? ""
+        let from = firstRouteStep?.fromTextField.text ?? ""
+        let to = firstRouteStep?.toTextField.text ?? ""
+        let departureDate = firstRouteStep?.departureDatePicker.date ?? Date()
+        let arrivalDate = firstRouteStep?.arrivalDatePicker.date ?? Date()
+        let company = firstRouteStep?.companyTextField.text ?? ""
+        let bookingNumber = firstRouteStep?.bookingNumberTextField.text ?? ""
         
         let hotelName = hotelNameTextField.text ?? ""
         let address = addressTextField.text ?? ""
