@@ -27,6 +27,8 @@ final class AddTripViewModel {
         company: String,
         bookingNumber: String,
         routeSteps: [TransportSegment],
+        hasHotelDates: Bool,
+        hasHotelDetails: Bool,
         hotelName: String,
         address: String,
         checkInDate: Date,
@@ -47,7 +49,7 @@ final class AddTripViewModel {
             return .failure("Arrival date must be after departure date.")
         }
         
-        if checkOutDate < checkInDate {
+        if hasHotelDates && checkOutDate < checkInDate {
             return .failure("Check-out date must be after check-in date.")
         }
         

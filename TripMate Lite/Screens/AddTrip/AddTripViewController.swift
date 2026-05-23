@@ -56,6 +56,10 @@ final class AddTripViewController: UIViewController {
     private let destinationTextField = UITextField()
     private let noteTextView = UITextView()
     
+    private var isNoteEnabled = false
+    private let noteSectionStackView = UIStackView()
+    private let noteActionButton = UIButton(type: .system)
+    
     private var routeStepInputs: [RouteStepInput] = []
     private let routeStepsStackView = UIStackView()
     private let routeActionButton = UIButton(type: .system)
@@ -64,8 +68,19 @@ final class AddTripViewController: UIViewController {
     private let hotelNameTextField = UITextField()
     private let addressTextField = UITextField()
     
+    private var isHotelDetailsEnabled = false
+    private var isHotelDatesEnabled = false
+    
+    private let hotelSectionStackView = UIStackView()
+    private let hotelActionButton = UIButton(type: .system)
+    private let hotelDatesActionButton = UIButton(type: .system)
+    
     private let startDatePicker = UIDatePicker()
     private let endDatePicker = UIDatePicker()
+    
+    private var didChangeStartDate = false
+    private var didChangeEndDate = false
+    
     private let checkInDatePicker = UIDatePicker()
     private let checkOutDatePicker = UIDatePicker()
     
@@ -208,6 +223,19 @@ final class AddTripViewController: UIViewController {
     private func setupContent() {
         setupDatePicker(startDatePicker, mode: .date)
         setupDatePicker(endDatePicker, mode: .date)
+        
+        startDatePicker.addTarget(
+            self,
+            action: #selector(startDateChanged),
+            for: .valueChanged
+        )
+
+        endDatePicker.addTarget(
+            self,
+            action: #selector(endDateChanged),
+            for: .valueChanged
+        )
+        
         setupDatePicker(checkInDatePicker, mode: .dateAndTime)
         setupDatePicker(checkOutDatePicker, mode: .dateAndTime)
         
@@ -218,15 +246,23 @@ final class AddTripViewController: UIViewController {
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
+    @objc private func startDateChanged() {
+        didChangeStartDate = true
+    }
+
+    @objc private func endDateChanged() {
+        didChangeEndDate = true
+    }
+    
     private func makeBasicTripInfoSection() -> UIView {
         let sectionStack = makeSectionStack(title: "Basic Trip Info")
         let card = makeCard()
         
         card.addArrangedSubview(
             makeTextFieldBlock(
-                title: "Destination",
+                title: "Destination *",
                 textField: destinationTextField,
-                placeholder: "e.g. Rome, Italy"
+                placeholder: "e.g. Rome"
             )
         )
         
@@ -245,10 +281,14 @@ final class AddTripViewController: UIViewController {
             )
         )
         
-        card.addArrangedSubview(makeSeparator())
-        card.addArrangedSubview(makeNoteBlock())
-        
         sectionStack.addArrangedSubview(card)
+        
+        noteSectionStackView.axis = .vertical
+        noteSectionStackView.spacing = 12
+        updateNoteSection()
+
+        sectionStack.addArrangedSubview(noteSectionStackView)
+        
         return sectionStack
     }
     
@@ -270,6 +310,15 @@ final class AddTripViewController: UIViewController {
         let input = RouteStepInput()
         setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
         setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+        
+        if let previousStep = routeStepInputs.last {
+            let previousTo = previousStep.toTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            if !previousTo.isEmpty {
+                input.fromTextField.text = previousTo
+            }
+        }
         
         routeStepInputs.append(input)
         
@@ -367,7 +416,7 @@ final class AddTripViewController: UIViewController {
             pointSize: 14,
             weight: .semibold
         )
-
+        
         deleteButton.setImage(
             UIImage(systemName: "trash", withConfiguration: trashConfig),
             for: .normal
@@ -462,7 +511,7 @@ final class AddTripViewController: UIViewController {
     @objc private func routeActionButtonTapped() {
         if !isMultiStepRouteEnabled {
             isMultiStepRouteEnabled = true
-            routeActionButton.setTitle("Add route step", for: .normal)
+            routeActionButton.configuration?.title = "Add route step"
             
             rebuildRouteSteps()
             addRouteStep()
@@ -508,7 +557,45 @@ final class AddTripViewController: UIViewController {
     
     private func makeHotelDetailsSection() -> UIView {
         let sectionStack = makeSectionStack(title: "Hotel Details")
+        
+        hotelSectionStackView.axis = .vertical
+        hotelSectionStackView.spacing = 12
+        
+        updateHotelSection()
+        
+        sectionStack.addArrangedSubview(hotelSectionStackView)
+        
+        return sectionStack
+    }
+    
+    private func updateHotelSection() {
+        hotelSectionStackView.arrangedSubviews.forEach { view in
+            hotelSectionStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        if isHotelDetailsEnabled {
+            hotelSectionStackView.addArrangedSubview(makeHotelInfoCard())
+            
+            if isHotelDatesEnabled {
+                hotelSectionStackView.addArrangedSubview(makeHotelDatesCard())
+            } else {
+                hotelSectionStackView.addArrangedSubview(
+                    makeHotelDatesActionButton(title: "Add check-in / check-out")
+                )
+            }
+        } else {
+            hotelSectionStackView.addArrangedSubview(
+                makeHotelActionButton(title: "Add hotel details")
+            )
+        }
+    }
+    
+    private func makeHotelInfoCard() -> UIView {
         let card = makeCard()
+        
+        card.addArrangedSubview(makeCardHeader(title: "Hotel Info", action: #selector(hotelActionButtonTapped)))
+        card.addArrangedSubview(makeSeparator())
         
         card.addArrangedSubview(
             makeTextFieldBlock(
@@ -528,6 +615,18 @@ final class AddTripViewController: UIViewController {
             )
         )
         
+        return card
+    }
+    
+    private func makeHotelDatesCard() -> UIView {
+        let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeCardHeader(
+                title: "Check-in / Check-out",
+                action: #selector(hotelDatesActionButtonTapped)
+            )
+        )
         card.addArrangedSubview(makeSeparator())
         
         card.addArrangedSubview(
@@ -546,8 +645,196 @@ final class AddTripViewController: UIViewController {
             )
         )
         
-        sectionStack.addArrangedSubview(card)
-        return sectionStack
+        return card
+    }
+    
+    private func makeCardHeader(title: String, action: Selector) -> UIView {
+        let container = UIView()
+        
+        let titleLabel = UILabel()
+        titleLabel.text = title
+        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        titleLabel.textColor = .label
+        
+        let deleteButton = UIButton(type: .system)
+        let trashConfig = UIImage.SymbolConfiguration(
+            pointSize: 14,
+            weight: .semibold
+        )
+        
+        deleteButton.setImage(
+            UIImage(systemName: "trash", withConfiguration: trashConfig),
+            for: .normal
+        )
+        deleteButton.tintColor = .systemRed
+        deleteButton.addTarget(
+            self,
+            action: action,
+            for: .touchUpInside
+        )
+        
+        container.addSubview(titleLabel)
+        container.addSubview(deleteButton)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            ),
+            
+            deleteButton.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            deleteButton.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            deleteButton.leadingAnchor.constraint(
+                greaterThanOrEqualTo: titleLabel.trailingAnchor,
+                constant: 12
+            ),
+            deleteButton.widthAnchor.constraint(equalToConstant: 24),
+            deleteButton.heightAnchor.constraint(equalToConstant: 24)
+        ])
+        
+        return container
+    }
+    
+    private func makeHotelActionButton(title: String) -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        if isHotelDetailsEnabled {
+            let trashConfig = UIImage.SymbolConfiguration(
+                pointSize: 14,
+                weight: .semibold
+            )
+            
+            configuration.image = UIImage(
+                systemName: "trash",
+                withConfiguration: trashConfig
+            )
+            configuration.baseForegroundColor = .systemRed
+        } else {
+            configuration.image = UIImage(systemName: "plus.circle.fill")
+            configuration.baseForegroundColor = .systemBlue
+        }
+        
+        hotelActionButton.configuration = configuration
+        hotelActionButton.contentHorizontalAlignment = .left
+        hotelActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        hotelActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        hotelActionButton.addTarget(
+            self,
+            action: #selector(hotelActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(hotelActionButton)
+        hotelActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            hotelActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            hotelActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            hotelActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            hotelActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            hotelActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+    
+    private func makeHotelDatesActionButton(title: String) -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        if isHotelDatesEnabled {
+            let trashConfig = UIImage.SymbolConfiguration(
+                pointSize: 14,
+                weight: .semibold
+            )
+            
+            configuration.image = UIImage(
+                systemName: "trash",
+                withConfiguration: trashConfig
+            )
+            configuration.baseForegroundColor = .systemRed
+        } else {
+            configuration.image = UIImage(systemName: "plus.circle.fill")
+            configuration.baseForegroundColor = .systemBlue
+        }
+        
+        hotelDatesActionButton.configuration = configuration
+        hotelDatesActionButton.contentHorizontalAlignment = .left
+        hotelDatesActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        hotelDatesActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        hotelDatesActionButton.addTarget(
+            self,
+            action: #selector(hotelDatesActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(hotelDatesActionButton)
+        hotelDatesActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            hotelDatesActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            hotelDatesActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            hotelDatesActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            hotelDatesActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            hotelDatesActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+    
+    @objc private func hotelActionButtonTapped() {
+        if isHotelDetailsEnabled {
+            isHotelDetailsEnabled = false
+            isHotelDatesEnabled = false
+            hotelNameTextField.text = ""
+            addressTextField.text = ""
+        } else {
+            isHotelDetailsEnabled = true
+        }
+        
+        updateHotelSection()
+    }
+    
+    @objc private func hotelDatesActionButtonTapped() {
+        isHotelDatesEnabled.toggle()
+        updateHotelSection()
     }
     
     private func makeSectionStack(title: String) -> UIStackView {
@@ -717,6 +1004,87 @@ final class AddTripViewController: UIViewController {
         return container
     }
     
+    private func updateNoteSection() {
+        noteSectionStackView.arrangedSubviews.forEach { view in
+            noteSectionStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        if isNoteEnabled {
+            noteSectionStackView.addArrangedSubview(makeNoteCard())
+        } else {
+            noteSectionStackView.addArrangedSubview(makeNoteActionButton(title: "Add note"))
+        }
+    }
+
+    private func makeNoteCard() -> UIView {
+        let card = makeCard()
+        
+        card.addArrangedSubview(
+            makeCardHeader(
+                title: "Notes",
+                action: #selector(noteActionButtonTapped)
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        card.addArrangedSubview(makeNoteBlock())
+        
+        return card
+    }
+
+    private func makeNoteActionButton(title: String) -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        noteActionButton.configuration = configuration
+        noteActionButton.contentHorizontalAlignment = .left
+        noteActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        noteActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        noteActionButton.addTarget(
+            self,
+            action: #selector(noteActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(noteActionButton)
+        noteActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            noteActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            noteActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            noteActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            noteActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            noteActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+
+    @objc private func noteActionButtonTapped() {
+        isNoteEnabled.toggle()
+        
+        if !isNoteEnabled {
+            noteTextView.text = notePlaceholder
+            noteTextView.textColor = .placeholderText
+        }
+        
+        updateNoteSection()
+    }
+    
     private func makeTwoColumnRow(
         leftView: UIView,
         rightView: UIView
@@ -782,13 +1150,29 @@ final class AddTripViewController: UIViewController {
     }
     
     @objc private func saveButtonTapped() {
-        let destination = destinationTextField.text ?? ""
-        let startDate = startDatePicker.date
-        let endDate = endDatePicker.date
+        let typedDestination = destinationTextField.text ?? ""
+
+        let lastRouteDestination = routeStepInputs.last?.toTextField.text?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+        let destination = typedDestination.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        ? lastRouteDestination
+        : typedDestination
         
-        let note = noteTextView.textColor == .placeholderText
-        ? ""
-        : noteTextView.text ?? ""
+        let routeStartDate = routeStepInputs.first?.departureDatePicker.date
+        let routeEndDate = routeStepInputs.last?.arrivalDatePicker.date
+
+        let startDate = didChangeStartDate
+        ? startDatePicker.date
+        : routeStartDate ?? startDatePicker.date
+
+        let endDate = didChangeEndDate
+        ? endDatePicker.date
+        : routeEndDate ?? endDatePicker.date
+        
+        let note = isNoteEnabled && noteTextView.textColor != .placeholderText
+        ? noteTextView.text ?? ""
+        : ""
         
         let routeSteps = routeStepInputs.map { input in
             TransportSegment(
@@ -802,9 +1186,9 @@ final class AddTripViewController: UIViewController {
                 bookingNumber: input.bookingNumberTextField.text ?? ""
             )
         }
-
+        
         let firstRouteStep = routeSteps.first
-
+        
         let transportType = firstRouteStep?.transportType ?? ""
         let from = firstRouteStep?.from ?? ""
         let to = firstRouteStep?.to ?? ""
@@ -813,10 +1197,10 @@ final class AddTripViewController: UIViewController {
         let company = firstRouteStep?.company ?? ""
         let bookingNumber = firstRouteStep?.bookingNumber ?? ""
         
-        let hotelName = hotelNameTextField.text ?? ""
-        let address = addressTextField.text ?? ""
-        let checkInDate = checkInDatePicker.date
-        let checkOutDate = checkOutDatePicker.date
+        let hotelName = isHotelDetailsEnabled ? hotelNameTextField.text ?? "" : ""
+        let address = isHotelDetailsEnabled ? addressTextField.text ?? "" : ""
+        let checkInDate = isHotelDatesEnabled ? checkInDatePicker.date : Date()
+        let checkOutDate = isHotelDatesEnabled ? checkOutDatePicker.date : Date()
         
         let result = viewModel.makeTrip(
             destination: destination,
@@ -831,6 +1215,8 @@ final class AddTripViewController: UIViewController {
             company: company,
             bookingNumber: bookingNumber,
             routeSteps: routeSteps,
+            hasHotelDates: isHotelDatesEnabled,
+            hasHotelDetails: isHotelDetailsEnabled,
             hotelName: hotelName,
             address: address,
             checkInDate: checkInDate,

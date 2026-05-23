@@ -199,13 +199,13 @@ final class TripDetailsViewController: UIViewController {
             let firstRow = makeTwoColumnRow(
                 leftTitle: "Departure",
                 leftValue: trip.transportDetails.departureDate.tripDateTimeString,
-                rightTitle: "Company",
-                rightValue: trip.transportDetails.company
+                rightTitle: "Arrival",
+                rightValue: trip.transportDetails.arrivalDate.tripDateTimeString
             )
-            
+
             let secondRow = makeTwoColumnRow(
-                leftTitle: "Transport",
-                leftValue: trip.transportDetails.displayType,
+                leftTitle: "Company",
+                leftValue: trip.transportDetails.company,
                 rightTitle: "Booking No.",
                 rightValue: trip.transportDetails.bookingNumber
             )
@@ -346,16 +346,20 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func addHotelSection() {
+        let hotelName = trip.hotelDetails.hotelName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let address = trip.hotelDetails.address.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !hotelName.isEmpty || !address.isEmpty else {
+            return
+        }
+        
         let sectionStack = makeSectionStack(
             iconName: "building.2.fill",
             title: "Hotel"
         )
         
         let card = makeCardView()
-        
-        let hotelName = trip.hotelDetails.hotelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let address = trip.hotelDetails.address.trimmingCharacters(in: .whitespacesAndNewlines)
-        
+              
         if !hotelName.isEmpty {
             let hotelNameLabel = UILabel()
             hotelNameLabel.text = hotelName
