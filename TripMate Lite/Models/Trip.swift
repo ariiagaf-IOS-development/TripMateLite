@@ -2,8 +2,6 @@
 //  Trip.swift
 //  TripMate Lite
 //
-//  Created by Арина Агафонова on 14.05.2026.
-//
 
 import Foundation
 
@@ -17,6 +15,8 @@ struct Trip {
     let hasHotelDetails: Bool
     let hasHotelDates: Bool
     
+    let checklistItems: [ChecklistItem]
+    
     init(
         id: UUID,
         basicInfo: BasicTripInfo,
@@ -24,7 +24,8 @@ struct Trip {
         routeSteps: [TransportSegment] = [],
         hotelDetails: HotelDetails,
         hasHotelDetails: Bool = false,
-        hasHotelDates: Bool = false
+        hasHotelDates: Bool = false,
+        checklistItems: [ChecklistItem] = []
     ) {
         self.id = id
         self.basicInfo = basicInfo
@@ -50,5 +51,6 @@ struct Trip {
         self.hotelDetails = hotelDetails
         self.hasHotelDetails = hasHotelDetails
         self.hasHotelDates = hasHotelDates
+        self.checklistItems = checklistItems
     }
 }

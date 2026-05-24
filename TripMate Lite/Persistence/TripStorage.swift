@@ -49,6 +49,8 @@ final class TripStorage {
         
         saveRouteSteps(trip.routeSteps, for: entity)
         
+        saveChecklistItems(trip.checklistItems, for: entity)
+        
         saveContext()
     }
     
@@ -90,6 +92,9 @@ final class TripStorage {
             
             deleteOldRouteSteps(for: entity)
             saveRouteSteps(trip.routeSteps, for: entity)
+            
+            deleteOldChecklistItems(for: entity)
+            saveChecklistItems(trip.checklistItems, for: entity)
             
             saveContext()
         } catch {
@@ -154,6 +159,30 @@ final class TripStorage {
         }
     }
     
+    private func saveChecklistItems(
+        _ items: [ChecklistItem],
+        for tripEntity: TripEntity
+    ) {
+        for item in items {
+            let entity = ChecklistItemEntity(context: context)
+            
+            entity.id = item.id
+            entity.title = item.title
+            entity.isCompleted = item.isCompleted
+            entity.trip = tripEntity
+        }
+    }
+
+    private func deleteOldChecklistItems(for tripEntity: TripEntity) {
+        guard let oldItems = tripEntity.checklistItems as? Set<ChecklistItemEntity> else {
+            return
+        }
+        
+        for item in oldItems {
+            context.delete(item)
+        }
+    }
+    
     private func deleteOldRouteSteps(for tripEntity: TripEntity) {
         guard let oldSegments = tripEntity.routeSegments as? Set<TransportSegmentEntity> else {
             return
@@ -191,6 +220,18 @@ final class TripStorage {
             checkOutDate: entity.checkOutDate ?? Date()
         )
         
+        let checklistItems = (entity.checklistItems as? Set<ChecklistItemEntity> ?? [])
+            .map {
+                ChecklistItem(
+                    id: $0.id ?? UUID(),
+                    title: $0.title ?? "",
+                    isCompleted: $0.isCompleted
+                )
+            }
+            .sorted {
+                $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending
+            }
+        
         return Trip(
             id: entity.id ?? UUID(),
             basicInfo: basicInfo,
@@ -198,7 +239,8 @@ final class TripStorage {
             routeSteps: routeSteps,
             hotelDetails: hotelDetails,
             hasHotelDetails: entity.hasHotelDetails,
-            hasHotelDates: entity.hasHotelDates
+            hasHotelDates: entity.hasHotelDates,
+            checklistItems: checklistItems
         )
     }
     

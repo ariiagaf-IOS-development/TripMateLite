@@ -68,9 +68,13 @@ final class AddTripViewController: UIViewController {
     private let noteActionButton = UIButton(type: .system)
     
     private var routeStepInputs: [RouteStepInput] = []
+    private var isRouteDetailsEnabled = false
+    private var isMultiStepRouteEnabled = false
+
+    private let routeSectionStackView = UIStackView()
     private let routeStepsStackView = UIStackView()
     private let routeActionButton = UIButton(type: .system)
-    private var isMultiStepRouteEnabled = false
+    private let routeDetailsActionButton = UIButton(type: .system)
     
     private let hotelNameTextField = UITextField()
     private let addressTextField = UITextField()
@@ -374,6 +378,23 @@ final class AddTripViewController: UIViewController {
     private func populateRouteSteps(from trip: Trip) {
         routeStepInputs.removeAll()
         
+        let hasRouteData = trip.routeSteps.contains { step in
+            !step.transportType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.from.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.bookingNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+
+        guard hasRouteData else {
+            isRouteDetailsEnabled = false
+            isMultiStepRouteEnabled = false
+            updateRouteSection()
+            return
+        }
+
+        isRouteDetailsEnabled = true
+        
         routeStepsStackView.arrangedSubviews.forEach { view in
             routeStepsStackView.removeArrangedSubview(view)
             view.removeFromSuperview()
@@ -417,6 +438,7 @@ final class AddTripViewController: UIViewController {
         }
         
         rebuildRouteSteps()
+        updateRouteSection()
     }
     
     private func populateHotelDetails(from trip: Trip) {
@@ -484,15 +506,83 @@ final class AddTripViewController: UIViewController {
     private func makeRoutePlanSection() -> UIView {
         let sectionStack = makeSectionStack(title: "Route Plan")
         
-        routeStepsStackView.axis = .vertical
-        routeStepsStackView.spacing = 12
+        routeSectionStackView.axis = .vertical
+        routeSectionStackView.spacing = 12
         
-        addRouteStep()
+        updateRouteSection()
         
-        sectionStack.addArrangedSubview(routeStepsStackView)
-        sectionStack.addArrangedSubview(makeRouteActionButton())
+        sectionStack.addArrangedSubview(routeSectionStackView)
         
         return sectionStack
+    }
+    
+    private func updateRouteSection() {
+        routeSectionStackView.arrangedSubviews.forEach { view in
+            routeSectionStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        if isRouteDetailsEnabled {
+            routeStepsStackView.axis = .vertical
+            routeStepsStackView.spacing = 12
+            
+            if routeStepInputs.isEmpty {
+                addRouteStep()
+            }
+            
+            routeSectionStackView.addArrangedSubview(routeStepsStackView)
+            routeSectionStackView.addArrangedSubview(makeRouteActionButton())
+        } else {
+            routeSectionStackView.addArrangedSubview(
+                makeRouteDetailsActionButton(title: "Add route details")
+            )
+        }
+    }
+    
+    private func makeRouteDetailsActionButton(title: String) -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        routeDetailsActionButton.configuration = configuration
+        routeDetailsActionButton.contentHorizontalAlignment = .left
+        routeDetailsActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        routeDetailsActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        routeDetailsActionButton.addTarget(
+            self,
+            action: #selector(routeDetailsActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(routeDetailsActionButton)
+        routeDetailsActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            routeDetailsActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            routeDetailsActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            routeDetailsActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            routeDetailsActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            routeDetailsActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+
+    @objc private func routeDetailsActionButtonTapped() {
+        isRouteDetailsEnabled = true
+        updateRouteSection()
     }
     
     private func addRouteStep() {
@@ -518,8 +608,16 @@ final class AddTripViewController: UIViewController {
     
     private func makeRouteStepCard(input: RouteStepInput, stepNumber: Int) -> UIView {
         let card = makeCard()
-        
-        if isMultiStepRouteEnabled {
+
+        if stepNumber == 1 {
+            card.addArrangedSubview(
+                makeCardHeader(
+                    title: isMultiStepRouteEnabled ? "Route Step \(stepNumber)" : "Route Details",
+                    action: #selector(removeRouteDetailsTapped)
+                )
+            )
+            card.addArrangedSubview(makeSeparator())
+        } else if isMultiStepRouteEnabled {
             card.addArrangedSubview(
                 makeRouteStepHeader(
                     stepNumber: stepNumber,
@@ -729,6 +827,20 @@ final class AddTripViewController: UIViewController {
         rebuildRouteSteps()
     }
     
+    @objc private func removeRouteDetailsTapped() {
+        isRouteDetailsEnabled = false
+        isMultiStepRouteEnabled = false
+        routeStepInputs.removeAll()
+        
+        routeStepsStackView.arrangedSubviews.forEach { view in
+            routeStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        routeActionButton.configuration?.title = "Create multi-step route"
+        updateRouteSection()
+    }
+    
     private func rebuildRouteSteps() {
         routeStepsStackView.arrangedSubviews.forEach { view in
             routeStepsStackView.removeArrangedSubview(view)
@@ -842,7 +954,7 @@ final class AddTripViewController: UIViewController {
         
         let titleLabel = UILabel()
         titleLabel.text = title
-        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        titleLabel.font = .systemFont(ofSize: 15, weight: .medium)
         titleLabel.textColor = .label
         
         let deleteButton = UIButton(type: .system)
@@ -1047,11 +1159,13 @@ final class AddTripViewController: UIViewController {
         let card = UIStackView()
         card.axis = .vertical
         card.spacing = 0
-        card.backgroundColor = UIColor.cardBackground
+        
+        card.backgroundColor = .cardBackground
         card.layer.cornerRadius = Layout.cardCornerRadius
-        card.layer.borderWidth = 0.5
-        card.layer.borderColor = UIColor.systemGray5.cgColor
-        card.clipsToBounds = true
+        card.layer.shadowColor = UIColor.black.cgColor
+        card.layer.shadowOpacity = 0.06
+        card.layer.shadowOffset = CGSize(width: 0, height: 4)
+        card.layer.shadowRadius = 12
         
         return card
     }
@@ -1445,8 +1559,13 @@ final class AddTripViewController: UIViewController {
         
         let destination = destinationTextField.text ?? ""
         
-        let routeStartDate = routeStepInputs.first?.departureDatePicker.date
-        let routeEndDate = routeStepInputs.last?.arrivalDatePicker.date
+        let routeStartDate = isRouteDetailsEnabled
+        ? routeStepInputs.first?.departureDatePicker.date
+        : nil
+
+        let routeEndDate = isRouteDetailsEnabled
+        ? routeStepInputs.last?.arrivalDatePicker.date
+        : nil
 
         let startDate = didChangeStartDate
         ? startDatePicker.date
@@ -1460,7 +1579,8 @@ final class AddTripViewController: UIViewController {
         ? noteTextView.text ?? ""
         : ""
         
-        let routeSteps = routeStepInputs.map { input in
+        let routeSteps: [TransportSegment] = isRouteDetailsEnabled
+        ? routeStepInputs.map { input in
             TransportSegment(
                 id: UUID(),
                 transportType: input.transportTypeTextField.text ?? "",
@@ -1472,6 +1592,7 @@ final class AddTripViewController: UIViewController {
                 bookingNumber: input.bookingNumberTextField.text ?? ""
             )
         }
+        : []
         
         let firstRouteStep = routeSteps.first
         

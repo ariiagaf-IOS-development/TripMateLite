@@ -208,6 +208,7 @@ final class TripDetailsViewController: UIViewController {
         addRouteSection()
         addHotelSection()
         addNoteSectionIfNeeded()
+        addChecklistSection()
     }
     
     private func addRouteSection() {
@@ -521,6 +522,243 @@ final class TripDetailsViewController: UIViewController {
         stackView.addArrangedSubview(sectionStack)
     }
     
+    private func addChecklistSection() {
+        let sectionStack = makeSectionStack(
+            iconName: "checklist",
+            title: "Packing Checklist"
+        )
+        
+        let card = makeCardView()
+        
+        if trip.checklistItems.isEmpty {
+            let emptyLabel = UILabel()
+            emptyLabel.text = "No items yet"
+            emptyLabel.font = .systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+            emptyLabel.textColor = .secondaryLabel
+            emptyLabel.numberOfLines = 0
+            
+            let subtitleLabel = UILabel()
+            subtitleLabel.text = "Add things you do not want to forget."
+            subtitleLabel.font = .systemFont(ofSize: 14)
+            subtitleLabel.textColor = .secondaryLabel
+            subtitleLabel.numberOfLines = 0
+            
+            card.addArrangedSubview(emptyLabel)
+            card.addArrangedSubview(subtitleLabel)
+        } else {
+            for item in trip.checklistItems {
+                card.addArrangedSubview(makeChecklistItemRow(item))
+            }
+        }
+        
+        card.addArrangedSubview(makeSeparator())
+        card.addArrangedSubview(makeAddChecklistItemButton())
+        
+        sectionStack.addArrangedSubview(card)
+        stackView.addArrangedSubview(sectionStack)
+    }
+    
+    private func addChecklistItem(title: String) {
+        let newItem = ChecklistItem(
+            id: UUID(),
+            title: title,
+            isCompleted: false
+        )
+        
+        updateChecklistItems(trip.checklistItems + [newItem])
+    }
+    
+    @objc private func addChecklistItemTapped() {
+        let alert = UIAlertController(
+            title: "New checklist item",
+            message: nil,
+            preferredStyle: .alert
+        )
+        
+        alert.addTextField { textField in
+            textField.placeholder = "e.g. Passport"
+            textField.autocapitalizationType = .sentences
+        }
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Add",
+                style: .default
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                
+                let title = alert.textFields?.first?.text?
+                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                
+                guard !title.isEmpty else {
+                    return
+                }
+                
+                self.addChecklistItem(title: title)
+            }
+        )
+        
+        present(alert, animated: true)
+    }
+    
+    @objc private func checklistItemTapped(_ sender: ChecklistTapGestureRecognizer) {
+        guard let itemID = sender.itemID else {
+            return
+        }
+        
+        let updatedItems = trip.checklistItems.map { item in
+            if item.id == itemID {
+                return ChecklistItem(
+                    id: item.id,
+                    title: item.title,
+                    isCompleted: !item.isCompleted
+                )
+            }
+            
+            return item
+        }
+        
+        updateChecklistItems(updatedItems)
+    }
+    
+    private func updateChecklistItems(_ items: [ChecklistItem]) {
+        let sortedItems = items.sorted { first, second in
+            if first.isCompleted != second.isCompleted {
+                return !first.isCompleted && second.isCompleted
+            }
+            
+            return first.title.localizedCaseInsensitiveCompare(second.title) == .orderedAscending
+        }
+        
+        let updatedTrip = Trip(
+            id: trip.id,
+            basicInfo: trip.basicInfo,
+            transportDetails: trip.transportDetails,
+            routeSteps: trip.routeSteps,
+            hotelDetails: trip.hotelDetails,
+            hasHotelDetails: trip.hasHotelDetails,
+            hasHotelDates: trip.hasHotelDates,
+            checklistItems: sortedItems
+        )
+        
+        TripStorage.shared.updateTrip(updatedTrip)
+        trip = updatedTrip
+        reloadDetails()
+    }
+    
+    private func makeChecklistItemRow(_ item: ChecklistItem) -> UIView {
+        let container = UIView()
+        
+        let iconImageView = UIImageView()
+        iconImageView.image = UIImage(
+            systemName: item.isCompleted ? "checkmark.circle.fill" : "circle"
+        )
+        iconImageView.tintColor = item.isCompleted ? .systemBlue : .secondaryLabel
+        iconImageView.contentMode = .scaleAspectFit
+        
+        let titleLabel = UILabel()
+
+        let attributes: [NSAttributedString.Key: Any] = item.isCompleted
+        ? [
+            .strikethroughStyle: NSUnderlineStyle.single.rawValue,
+            .foregroundColor: UIColor.secondaryLabel,
+            .font: UIFont.systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+        ]
+        : [
+            .foregroundColor: UIColor.label,
+            .font: UIFont.systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+        ]
+
+        titleLabel.attributedText = NSAttributedString(
+            string: item.title,
+            attributes: attributes
+        )
+
+        titleLabel.numberOfLines = 0
+        
+        container.addSubview(iconImageView)
+        container.addSubview(titleLabel)
+        
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            iconImageView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 22),
+            iconImageView.heightAnchor.constraint(equalToConstant: 22),
+            
+            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: iconImageView.trailingAnchor,
+                constant: 10
+            ),
+            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            titleLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6)
+        ])
+        
+        container.isUserInteractionEnabled = true
+        let tapGesture = ChecklistTapGestureRecognizer(
+            target: self,
+            action: #selector(checklistItemTapped(_:))
+        )
+        tapGesture.itemID = item.id
+        container.addGestureRecognizer(tapGesture)
+        
+        return container
+    }
+    
+    private func makeAddChecklistItemButton() -> UIView {
+        let container = UIView()
+        
+        let button = UIButton(type: .system)
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "Add checklist item"
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        button.configuration = configuration
+        button.contentHorizontalAlignment = .left
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        button.addTarget(
+            self,
+            action: #selector(addChecklistItemTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(button)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            button.topAnchor.constraint(equalTo: container.topAnchor),
+            button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            button.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            button.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+    
     private func makeSectionStack(iconName: String, title: String) -> UIStackView {
         let sectionStack = UIStackView()
         sectionStack.axis = .vertical
@@ -741,4 +979,8 @@ extension TransportSegment {
             return "arrow.triangle.branch"
         }
     }
+}
+
+private final class ChecklistTapGestureRecognizer: UITapGestureRecognizer {
+    var itemID: UUID?
 }

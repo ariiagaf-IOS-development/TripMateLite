@@ -1,5 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="24512" systemVersion="25D125" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="ChecklistItemEntity" representedClassName="ChecklistItemEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isCompleted" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="checklistItems" inverseEntity="TripEntity"/>
+    </entity>
     <entity name="TransportSegmentEntity" representedClassName="TransportSegmentEntity" syncable="YES" codeGenerationType="class">
         <attribute name="arrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="bookingNumber" optional="YES" attributeType="String"/>
@@ -31,6 +37,7 @@
         <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="to" attributeType="String"/>
         <attribute name="transportType" attributeType="String"/>
+        <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ChecklistItemEntity" inverseName="trip" inverseEntity="ChecklistItemEntity"/>
         <relationship name="routeSegments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TransportSegmentEntity" inverseName="trip" inverseEntity="TransportSegmentEntity"/>
     </entity>
 </model>
