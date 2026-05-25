@@ -47,7 +47,10 @@ final class TripStorage {
         entity.hasHotelDetails = trip.hasHotelDetails
         entity.hasHotelDates = trip.hasHotelDates
         
+        entity.hasReturnTicket = trip.hasReturnTicket
+        
         saveRouteSteps(trip.routeSteps, for: entity)
+        saveReturnRouteSteps(trip.returnRouteSteps, for: entity)
         
         saveChecklistItems(trip.checklistItems, for: entity)
         
@@ -90,9 +93,14 @@ final class TripStorage {
             entity.hasHotelDetails = trip.hasHotelDetails
             entity.hasHotelDates = trip.hasHotelDates
             
+            entity.hasReturnTicket = trip.hasReturnTicket
+
             deleteOldRouteSteps(for: entity)
             saveRouteSteps(trip.routeSteps, for: entity)
-            
+
+            deleteOldReturnRouteSteps(for: entity)
+            saveReturnRouteSteps(trip.returnRouteSteps, for: entity)
+
             deleteOldChecklistItems(for: entity)
             saveChecklistItems(trip.checklistItems, for: entity)
             
@@ -159,6 +167,37 @@ final class TripStorage {
         }
     }
     
+    private func saveReturnRouteSteps(
+        _ returnRouteSteps: [TransportSegment],
+        for tripEntity: TripEntity
+    ) {
+        for (index, step) in returnRouteSteps.enumerated() {
+            let segmentEntity = ReturnSegmentEntity(context: context)
+            
+            segmentEntity.id = step.id
+            segmentEntity.transportType = step.transportType
+            segmentEntity.from = step.from
+            segmentEntity.to = step.to
+            segmentEntity.departureDate = step.departureDate
+            segmentEntity.arrivalDate = step.arrivalDate
+            segmentEntity.company = step.company
+            segmentEntity.bookingNumber = step.bookingNumber
+            segmentEntity.orderIndex = Int16(index)
+            
+            segmentEntity.trip = tripEntity
+        }
+    }
+
+    private func deleteOldReturnRouteSteps(for tripEntity: TripEntity) {
+        guard let oldSegments = tripEntity.returnSegments as? Set<ReturnSegmentEntity> else {
+            return
+        }
+        
+        for segment in oldSegments {
+            context.delete(segment)
+        }
+    }
+    
     private func saveChecklistItems(
         _ items: [ChecklistItem],
         for tripEntity: TripEntity
@@ -213,6 +252,8 @@ final class TripStorage {
         
         let routeSteps = makeRouteSteps(from: entity)
         
+        let returnRouteSteps = makeReturnRouteSteps(from: entity)
+        
         let hotelDetails = HotelDetails(
             hotelName: entity.hotelName ?? "",
             address: entity.address ?? "",
@@ -240,12 +281,36 @@ final class TripStorage {
             hotelDetails: hotelDetails,
             hasHotelDetails: entity.hasHotelDetails,
             hasHotelDates: entity.hasHotelDates,
-            checklistItems: checklistItems
+            checklistItems: checklistItems,
+            hasReturnTicket: entity.hasReturnTicket,
+            returnRouteSteps: returnRouteSteps
         )
     }
     
     private func makeRouteSteps(from entity: TripEntity) -> [TransportSegment] {
         guard let segmentEntities = entity.routeSegments as? Set<TransportSegmentEntity>,
+              !segmentEntities.isEmpty else {
+            return []
+        }
+        
+        return segmentEntities
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .map { segmentEntity in
+                TransportSegment(
+                    id: segmentEntity.id ?? UUID(),
+                    transportType: segmentEntity.transportType ?? "",
+                    from: segmentEntity.from ?? "",
+                    to: segmentEntity.to ?? "",
+                    departureDate: segmentEntity.departureDate ?? Date(),
+                    arrivalDate: segmentEntity.arrivalDate ?? Date(),
+                    company: segmentEntity.company ?? "",
+                    bookingNumber: segmentEntity.bookingNumber ?? ""
+                )
+            }
+    }
+    
+    private func makeReturnRouteSteps(from entity: TripEntity) -> [TransportSegment] {
+        guard let segmentEntities = entity.returnSegments as? Set<ReturnSegmentEntity>,
               !segmentEntities.isEmpty else {
             return []
         }

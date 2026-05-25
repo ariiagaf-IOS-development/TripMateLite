@@ -76,6 +76,15 @@ final class AddTripViewController: UIViewController {
     private let routeActionButton = UIButton(type: .system)
     private let routeDetailsActionButton = UIButton(type: .system)
     
+    private var returnStepInputs: [RouteStepInput] = []
+    private var isReturnRouteEnabled = false
+    private var isMultiStepReturnRouteEnabled = false
+
+    private let returnRouteSectionStackView = UIStackView()
+    private let returnStepsStackView = UIStackView()
+    private let returnRouteActionButton = UIButton(type: .system)
+    private let returnRouteDetailsActionButton = UIButton(type: .system)
+    
     private let hotelNameTextField = UITextField()
     private let addressTextField = UITextField()
     
@@ -349,6 +358,7 @@ final class AddTripViewController: UIViewController {
         
         stackView.addArrangedSubview(makeBasicTripInfoSection())
         stackView.addArrangedSubview(makeRoutePlanSection())
+        stackView.addArrangedSubview(makeReturnRouteSection())
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
@@ -372,6 +382,7 @@ final class AddTripViewController: UIViewController {
         didChangeEndDate = true
         
         populateRouteSteps(from: trip)
+        populateReturnRoute(from: trip)
         populateHotelDetails(from: trip)
     }
     
@@ -439,6 +450,57 @@ final class AddTripViewController: UIViewController {
         
         rebuildRouteSteps()
         updateRouteSection()
+    }
+    
+    private func populateReturnRoute(from trip: Trip) {
+        returnStepInputs.removeAll()
+        
+        let hasReturnRouteData = trip.returnRouteSteps.contains { step in
+            !step.transportType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.from.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
+            !step.bookingNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        
+        guard trip.hasReturnTicket && hasReturnRouteData else {
+            isReturnRouteEnabled = false
+            isMultiStepReturnRouteEnabled = false
+            updateReturnRouteSection()
+            return
+        }
+        
+        isReturnRouteEnabled = true
+        isMultiStepReturnRouteEnabled = trip.returnRouteSteps.count > 1
+        
+        returnStepsStackView.arrangedSubviews.forEach { view in
+            returnStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        for step in trip.returnRouteSteps {
+            let input = RouteStepInput()
+            
+            setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
+            setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+            
+            input.transportTypeTextField.text = step.transportType
+            input.fromTextField.text = step.from
+            input.toTextField.text = step.to
+            input.departureDatePicker.date = step.departureDate
+            input.arrivalDatePicker.date = step.arrivalDate
+            input.companyTextField.text = step.company
+            input.bookingNumberTextField.text = step.bookingNumber
+            
+            returnStepInputs.append(input)
+        }
+        
+        returnRouteActionButton.configuration?.title = isMultiStepReturnRouteEnabled
+        ? "Add return step"
+        : "Create multi-step return route"
+        
+        rebuildReturnSteps()
+        updateReturnRouteSection()
     }
     
     private func populateHotelDetails(from trip: Trip) {
@@ -853,6 +915,360 @@ final class AddTripViewController: UIViewController {
                 stepNumber: index + 1
             )
             routeStepsStackView.addArrangedSubview(card)
+        }
+    }
+    
+    private func makeReturnRouteSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Return Route")
+        
+        returnRouteSectionStackView.axis = .vertical
+        returnRouteSectionStackView.spacing = 12
+        
+        updateReturnRouteSection()
+        
+        sectionStack.addArrangedSubview(returnRouteSectionStackView)
+        
+        return sectionStack
+    }
+
+    private func updateReturnRouteSection() {
+        returnRouteSectionStackView.arrangedSubviews.forEach { view in
+            returnRouteSectionStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        if isReturnRouteEnabled {
+            returnStepsStackView.axis = .vertical
+            returnStepsStackView.spacing = 12
+            
+            if returnStepInputs.isEmpty {
+                addReturnStep()
+            }
+            
+            returnRouteSectionStackView.addArrangedSubview(returnStepsStackView)
+            returnRouteSectionStackView.addArrangedSubview(makeReturnRouteActionButton())
+        } else {
+            returnRouteSectionStackView.addArrangedSubview(
+                makeReturnRouteDetailsActionButton(title: "Add return route")
+            )
+        }
+    }
+
+    private func makeReturnRouteDetailsActionButton(title: String) -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = title
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        returnRouteDetailsActionButton.configuration = configuration
+        returnRouteDetailsActionButton.contentHorizontalAlignment = .left
+        returnRouteDetailsActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        returnRouteDetailsActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        returnRouteDetailsActionButton.addTarget(
+            self,
+            action: #selector(returnRouteDetailsActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(returnRouteDetailsActionButton)
+        returnRouteDetailsActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            returnRouteDetailsActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            returnRouteDetailsActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            returnRouteDetailsActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            returnRouteDetailsActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            returnRouteDetailsActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+
+    @objc private func returnRouteDetailsActionButtonTapped() {
+        isReturnRouteEnabled = true
+        updateReturnRouteSection()
+    }
+    
+    private func addReturnStep() {
+        let input = RouteStepInput()
+        setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
+        setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+        
+        if let previousStep = returnStepInputs.last {
+            let previousTo = previousStep.toTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            if !previousTo.isEmpty {
+                input.fromTextField.text = previousTo
+            }
+        }
+        
+        returnStepInputs.append(input)
+        
+        let stepNumber = returnStepInputs.count
+        let stepCard = makeReturnStepCard(input: input, stepNumber: stepNumber)
+        returnStepsStackView.addArrangedSubview(stepCard)
+    }
+
+    private func makeReturnStepCard(input: RouteStepInput, stepNumber: Int) -> UIView {
+        let card = makeCard()
+        
+        if stepNumber == 1 {
+            card.addArrangedSubview(
+                makeCardHeader(
+                    title: isMultiStepReturnRouteEnabled ? "Return Step \(stepNumber)" : "Return Route",
+                    action: #selector(removeReturnRouteTapped)
+                )
+            )
+            card.addArrangedSubview(makeSeparator())
+        } else if isMultiStepReturnRouteEnabled {
+            card.addArrangedSubview(
+                makeReturnStepHeader(
+                    stepNumber: stepNumber,
+                    inputID: input.id
+                )
+            )
+            card.addArrangedSubview(makeSeparator())
+        }
+        
+        card.addArrangedSubview(
+            makeTextFieldBlock(
+                title: "Transport Type",
+                textField: input.transportTypeTextField,
+                placeholder: "Plane / Train / Bus / Car"
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "From",
+                    textField: input.fromTextField,
+                    placeholder: "Rome"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "To",
+                    textField: input.toTextField,
+                    placeholder: "Belgrade"
+                )
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Departure",
+                picker: input.departureDatePicker
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeDateBlock(
+                title: "Arrival",
+                picker: input.arrivalDatePicker
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+        
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "Company",
+                    textField: input.companyTextField,
+                    placeholder: "Air Serbia / Trenitalia"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "Booking No.",
+                    textField: input.bookingNumberTextField,
+                    placeholder: "JU533 / FR9422"
+                )
+            )
+        )
+        
+        return card
+    }
+    
+    private func makeReturnStepHeader(stepNumber: Int, inputID: UUID) -> UIView {
+        let container = UIView()
+        
+        let label = UILabel()
+        label.text = "Return Step \(stepNumber)"
+        label.font = .systemFont(ofSize: 15, weight: .bold)
+        label.textColor = .label
+        
+        let deleteButton = UIButton(type: .system)
+        let trashConfig = UIImage.SymbolConfiguration(
+            pointSize: 14,
+            weight: .semibold
+        )
+        
+        deleteButton.setImage(
+            UIImage(systemName: "trash", withConfiguration: trashConfig),
+            for: .normal
+        )
+        deleteButton.tintColor = .systemRed
+        deleteButton.tag = inputID.hashValue
+        
+        deleteButton.addTarget(
+            self,
+            action: #selector(deleteReturnStepTapped(_:)),
+            for: .touchUpInside
+        )
+        
+        deleteButton.isHidden = stepNumber == 1
+        
+        container.addSubview(label)
+        container.addSubview(deleteButton)
+        
+        label.translatesAutoresizingMaskIntoConstraints = false
+        deleteButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            label.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            label.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            label.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            ),
+            
+            deleteButton.centerYAnchor.constraint(equalTo: label.centerYAnchor),
+            deleteButton.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            deleteButton.leadingAnchor.constraint(
+                greaterThanOrEqualTo: label.trailingAnchor,
+                constant: 12
+            ),
+            deleteButton.widthAnchor.constraint(equalToConstant: 24),
+            deleteButton.heightAnchor.constraint(equalToConstant: 24)
+        ])
+        
+        return container
+    }
+
+    private func makeReturnRouteActionButton() -> UIView {
+        let container = UIView()
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "Create multi-step return route"
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        returnRouteActionButton.configuration = configuration
+        returnRouteActionButton.contentHorizontalAlignment = .left
+        returnRouteActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        returnRouteActionButton.removeTarget(nil, action: nil, for: .allEvents)
+        returnRouteActionButton.addTarget(
+            self,
+            action: #selector(returnRouteActionButtonTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(returnRouteActionButton)
+        returnRouteActionButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            returnRouteActionButton.topAnchor.constraint(equalTo: container.topAnchor),
+            returnRouteActionButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            returnRouteActionButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            returnRouteActionButton.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            returnRouteActionButton.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+
+    @objc private func returnRouteActionButtonTapped() {
+        if !isMultiStepReturnRouteEnabled {
+            isMultiStepReturnRouteEnabled = true
+            returnRouteActionButton.configuration?.title = "Add return step"
+            
+            rebuildReturnSteps()
+            addReturnStep()
+            return
+        }
+        
+        addReturnStep()
+    }
+
+    @objc private func deleteReturnStepTapped(_ sender: UIButton) {
+        guard let index = returnStepInputs.firstIndex(where: { $0.id.hashValue == sender.tag }) else {
+            return
+        }
+        
+        guard index != 0 else {
+            return
+        }
+        
+        returnStepInputs.remove(at: index)
+        
+        if returnStepInputs.count == 1 {
+            isMultiStepReturnRouteEnabled = false
+            returnRouteActionButton.configuration?.title = "Create multi-step return route"
+        }
+        
+        rebuildReturnSteps()
+    }
+
+    @objc private func removeReturnRouteTapped() {
+        isReturnRouteEnabled = false
+        isMultiStepReturnRouteEnabled = false
+        returnStepInputs.removeAll()
+        
+        returnStepsStackView.arrangedSubviews.forEach { view in
+            returnStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        returnRouteActionButton.configuration?.title = "Create multi-step return route"
+        updateReturnRouteSection()
+    }
+
+    private func rebuildReturnSteps() {
+        returnStepsStackView.arrangedSubviews.forEach { view in
+            returnStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        for (index, input) in returnStepInputs.enumerated() {
+            let card = makeReturnStepCard(
+                input: input,
+                stepNumber: index + 1
+            )
+            returnStepsStackView.addArrangedSubview(card)
         }
     }
     
@@ -1609,6 +2025,21 @@ final class AddTripViewController: UIViewController {
         let checkInDate = isHotelDatesEnabled ? checkInDatePicker.date : Date()
         let checkOutDate = isHotelDatesEnabled ? checkOutDatePicker.date : Date()
         
+        let returnRouteSteps: [TransportSegment] = isReturnRouteEnabled
+        ? returnStepInputs.map { input in
+            TransportSegment(
+                id: UUID(),
+                transportType: input.transportTypeTextField.text ?? "",
+                from: input.fromTextField.text ?? "",
+                to: input.toTextField.text ?? "",
+                departureDate: input.departureDatePicker.date,
+                arrivalDate: input.arrivalDatePicker.date,
+                company: input.companyTextField.text ?? "",
+                bookingNumber: input.bookingNumberTextField.text ?? ""
+            )
+        }
+        : []
+        
         let result = viewModel.makeTrip(
             tripID: editingTrip?.id ?? UUID(),
             destination: destination,
@@ -1623,6 +2054,9 @@ final class AddTripViewController: UIViewController {
             company: company,
             bookingNumber: bookingNumber,
             routeSteps: routeSteps,
+            hasReturnTicket: isReturnRouteEnabled,
+            returnRouteSteps: returnRouteSteps,
+            checklistItems: editingTrip?.checklistItems ?? [],
             hasHotelDates: isHotelDatesEnabled,
             hasHotelDetails: isHotelDetailsEnabled,
             hotelName: hotelName,

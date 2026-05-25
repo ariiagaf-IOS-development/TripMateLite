@@ -15,7 +15,7 @@ final class AddTripViewModel {
     }
     
     func makeTrip(
-        tripID: UUID = UUID(),
+        tripID: UUID,
         destination: String,
         startDate: Date,
         endDate: Date,
@@ -28,6 +28,9 @@ final class AddTripViewModel {
         company: String,
         bookingNumber: String,
         routeSteps: [TransportSegment],
+        hasReturnTicket: Bool,
+        returnRouteSteps: [TransportSegment],
+        checklistItems: [ChecklistItem],
         hasHotelDates: Bool,
         hasHotelDetails: Bool,
         hotelName: String,
@@ -91,7 +94,10 @@ final class AddTripViewModel {
             routeSteps: routeSteps,
             hotelDetails: hotelDetails,
             hasHotelDetails: hasHotelDetails,
-            hasHotelDates: hasHotelDates
+            hasHotelDates: hasHotelDates,
+            checklistItems: checklistItems,
+            hasReturnTicket: hasReturnTicket,
+            returnRouteSteps: returnRouteSteps
         )
         
         return .success(trip)

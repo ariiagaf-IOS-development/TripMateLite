@@ -219,6 +219,7 @@ final class TripDetailsViewController: UIViewController {
     
     private func setupDetailsContent() {
         addRouteSection()
+        addReturnRouteSection()
         addHotelSection()
         addNoteSectionIfNeeded()
         addChecklistSection()
@@ -343,6 +344,107 @@ final class TripDetailsViewController: UIViewController {
             card.addArrangedSubview(routeRow)
             card.addArrangedSubview(dateRow)
             card.addArrangedSubview(detailsRow)
+        }
+        
+        sectionStack.addArrangedSubview(card)
+        stackView.addArrangedSubview(sectionStack)
+    }
+    
+    private func addReturnRouteSection() {
+        guard trip.hasReturnTicket, !trip.returnRouteSteps.isEmpty else {
+            return
+        }
+        
+        let sectionStack = makeSectionStack(
+            iconName: trip.returnRouteSteps.count > 1
+            ? "arrow.triangle.branch"
+            : trip.returnRouteSteps.first?.iconName ?? "arrow.uturn.backward",
+            title: trip.returnRouteSteps.count > 1 ? "Return Route" : "Return Ticket"
+        )
+        
+        let card = makeCardView()
+        
+        if trip.returnRouteSteps.count > 1 {
+            for (index, step) in trip.returnRouteSteps.enumerated() {
+                let stepTitle = makeInfoBlock(
+                    title: "Return Step \(index + 1)",
+                    value: step.displayType,
+                    useMutedBackground: true
+                )
+                
+                let routeLineView = makeRouteLineView(
+                    from: step.from,
+                    to: step.to,
+                    iconName: step.iconName
+                )
+                
+                let routeRow = makeTwoColumnRow(
+                    leftTitle: "From",
+                    leftValue: step.from,
+                    rightTitle: "To",
+                    rightValue: step.to
+                )
+                
+                let dateRow = makeTwoColumnRow(
+                    leftTitle: "Departure",
+                    leftValue: step.departureDate.tripDateTimeString,
+                    rightTitle: "Arrival",
+                    rightValue: step.arrivalDate.tripDateTimeString
+                )
+                
+                let detailsRow = makeTwoColumnRow(
+                    leftTitle: "Company",
+                    leftValue: step.company,
+                    rightTitle: "Booking No.",
+                    rightValue: step.bookingNumber
+                )
+                
+                card.addArrangedSubview(stepTitle)
+                card.addArrangedSubview(routeLineView)
+                card.addArrangedSubview(routeRow)
+                card.addArrangedSubview(dateRow)
+                card.addArrangedSubview(detailsRow)
+                
+                if index < trip.returnRouteSteps.count - 1 {
+                    card.addArrangedSubview(makeSeparator())
+                }
+            }
+        } else if let step = trip.returnRouteSteps.first {
+            let routeLineView = makeRouteLineView(
+                from: step.from,
+                to: step.to,
+                iconName: step.iconName
+            )
+            
+            card.addArrangedSubview(routeLineView)
+            card.addArrangedSubview(makeSeparator())
+            
+            card.addArrangedSubview(
+                makeTwoColumnRow(
+                    leftTitle: "From",
+                    leftValue: step.from,
+                    rightTitle: "To",
+                    rightValue: step.to
+                )
+            )
+            
+            card.addArrangedSubview(
+                makeTwoColumnRow(
+                    leftTitle: "Departure",
+                    leftValue: step.departureDate.tripDateTimeString,
+                    rightTitle: "Arrival",
+                    rightValue: step.arrivalDate.tripDateTimeString
+                )
+            )
+            
+            card.addArrangedSubview(
+                makeTwoColumnRow(
+                    leftTitle: "Company",
+                    leftValue: step.company,
+                    rightTitle: "Booking No.",
+                    rightValue: step.bookingNumber
+                )
+            )
         }
         
         sectionStack.addArrangedSubview(card)
@@ -576,7 +678,9 @@ final class TripDetailsViewController: UIViewController {
             hotelDetails: trip.hotelDetails,
             hasHotelDetails: trip.hasHotelDetails,
             hasHotelDates: trip.hasHotelDates,
-            checklistItems: sortedItems
+            checklistItems: sortedItems,
+            hasReturnTicket: trip.hasReturnTicket,
+            returnRouteSteps: trip.returnRouteSteps
         )
         
         TripStorage.shared.updateTrip(updatedTrip)

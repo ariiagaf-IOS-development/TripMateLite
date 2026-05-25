@@ -17,6 +17,9 @@ struct Trip {
     
     let checklistItems: [ChecklistItem]
     
+    let hasReturnTicket: Bool
+    let returnRouteSteps: [TransportSegment]
+    
     init(
         id: UUID,
         basicInfo: BasicTripInfo,
@@ -25,7 +28,9 @@ struct Trip {
         hotelDetails: HotelDetails,
         hasHotelDetails: Bool = false,
         hasHotelDates: Bool = false,
-        checklistItems: [ChecklistItem] = []
+        checklistItems: [ChecklistItem] = [],
+        hasReturnTicket: Bool = false,
+        returnRouteSteps: [TransportSegment] = []
     ) {
         self.id = id
         self.basicInfo = basicInfo
@@ -52,5 +57,7 @@ struct Trip {
         self.hasHotelDetails = hasHotelDetails
         self.hasHotelDates = hasHotelDates
         self.checklistItems = checklistItems
+        self.hasReturnTicket = hasReturnTicket
+        self.returnRouteSteps = returnRouteSteps
     }
 }
