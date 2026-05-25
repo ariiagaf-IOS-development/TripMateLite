@@ -130,6 +130,7 @@ final class AddTripViewController: UIViewController {
         setupStackView()
         setupScreenHeader()
         setupContent()
+        setupDefaultDatesIfNeeded()
         populateFieldsIfNeeded()
         updateSaveButtonState()
         setupKeyboardDismissGesture()
@@ -154,6 +155,10 @@ final class AddTripViewController: UIViewController {
     }
     
     private func hasUnsavedChanges() -> Bool {
+        if didChangeStartDate || didChangeEndDate {
+            return true
+        }
+        
         let destination = destinationTextField.text?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         
@@ -189,7 +194,30 @@ final class AddTripViewController: UIViewController {
             !bookingNumber.isEmpty
         }
         
-        if hasRouteChanges {
+        if isRouteDetailsEnabled || hasRouteChanges {
+            return true
+        }
+        
+        let hasReturnRouteChanges = returnStepInputs.contains { input in
+            let transportType = input.transportTypeTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let from = input.fromTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let to = input.toTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let company = input.companyTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let bookingNumber = input.bookingNumberTextField.text?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            
+            return !transportType.isEmpty ||
+            !from.isEmpty ||
+            !to.isEmpty ||
+            !company.isEmpty ||
+            !bookingNumber.isEmpty
+        }
+        
+        if isReturnRouteEnabled || hasReturnRouteChanges {
             return true
         }
         
@@ -362,6 +390,22 @@ final class AddTripViewController: UIViewController {
         stackView.addArrangedSubview(makeHotelDetailsSection())
     }
     
+    private func setupDefaultDatesIfNeeded() {
+        guard editingTrip == nil else {
+            return
+        }
+        
+        let calendar = Calendar.current
+        let now = Date()
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: now) ?? now
+        
+        startDatePicker.date = now
+        endDatePicker.date = tomorrow
+        
+        checkInDatePicker.date = now
+        checkOutDatePicker.date = tomorrow
+    }
+    
     private func populateFieldsIfNeeded() {
         guard let trip = editingTrip else {
             return
@@ -525,10 +569,61 @@ final class AddTripViewController: UIViewController {
     
     @objc private func startDateChanged() {
         didChangeStartDate = true
+        
+        let nextDay = Calendar.current.date(
+            byAdding: .day,
+            value: 1,
+            to: startDatePicker.date
+        ) ?? startDatePicker.date
+        
+        endDatePicker.date = nextDay
+        didChangeEndDate = true
+        
+        if isRouteDetailsEnabled {
+            for input in routeStepInputs {
+                input.departureDatePicker.date = startDatePicker.date
+                input.arrivalDatePicker.date = Calendar.current.date(
+                    byAdding: .hour,
+                    value: 2,
+                    to: startDatePicker.date
+                ) ?? startDatePicker.date
+            }
+        }
+        
+        if isReturnRouteEnabled {
+            for input in returnStepInputs {
+                input.departureDatePicker.date = endDatePicker.date
+                input.arrivalDatePicker.date = Calendar.current.date(
+                    byAdding: .hour,
+                    value: 2,
+                    to: endDatePicker.date
+                ) ?? endDatePicker.date
+            }
+        }
+        
+        if isHotelDetailsEnabled && isHotelDatesEnabled {
+            checkInDatePicker.date = startDatePicker.date
+            checkOutDatePicker.date = endDatePicker.date
+        }
     }
 
     @objc private func endDateChanged() {
         didChangeEndDate = true
+        
+        if isReturnRouteEnabled {
+            for input in returnStepInputs {
+                input.departureDatePicker.date = endDatePicker.date
+                input.arrivalDatePicker.date = Calendar.current.date(
+                    byAdding: .hour,
+                    value: 2,
+                    to: endDatePicker.date
+                ) ?? endDatePicker.date
+            }
+        }
+        
+        if isHotelDetailsEnabled && isHotelDatesEnabled {
+            checkOutDatePicker.date = endDatePicker.date
+        }
     }
     
     private func makeBasicTripInfoSection() -> UIView {
@@ -644,6 +739,15 @@ final class AddTripViewController: UIViewController {
 
     @objc private func routeDetailsActionButtonTapped() {
         isRouteDetailsEnabled = true
+        
+        routeStepInputs.removeAll()
+        
+        routeStepsStackView.arrangedSubviews.forEach { view in
+            routeStepsStackView.removeArrangedSubview(view)
+            view.removeFromSuperview()
+        }
+        
+        addRouteStep()
         updateRouteSection()
     }
     
@@ -651,6 +755,13 @@ final class AddTripViewController: UIViewController {
         let input = RouteStepInput()
         setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
         setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+        
+        input.departureDatePicker.date = startDatePicker.date
+        input.arrivalDatePicker.date = Calendar.current.date(
+            byAdding: .hour,
+            value: 2,
+            to: startDatePicker.date
+        ) ?? startDatePicker.date
         
         if let previousStep = routeStepInputs.last {
             let previousTo = previousStep.toTextField.text?
@@ -1004,6 +1115,13 @@ final class AddTripViewController: UIViewController {
         let input = RouteStepInput()
         setupDatePicker(input.departureDatePicker, mode: .dateAndTime)
         setupDatePicker(input.arrivalDatePicker, mode: .dateAndTime)
+        
+        input.departureDatePicker.date = endDatePicker.date
+        input.arrivalDatePicker.date = Calendar.current.date(
+            byAdding: .hour,
+            value: 2,
+            to: endDatePicker.date
+        ) ?? endDatePicker.date
         
         if let previousStep = returnStepInputs.last {
             let previousTo = previousStep.toTextField.text?
