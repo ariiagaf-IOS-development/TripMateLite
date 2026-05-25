@@ -16,6 +16,7 @@ final class AddTripViewModel {
     
     func makeTrip(
         tripID: UUID,
+        folderID: UUID?,
         destination: String,
         startDate: Date,
         endDate: Date,
@@ -89,6 +90,7 @@ final class AddTripViewModel {
         
         let trip = Trip(
             id: tripID,
+            folderID: folderID,
             basicInfo: basicInfo,
             transportDetails: transportDetails,
             routeSteps: routeSteps,

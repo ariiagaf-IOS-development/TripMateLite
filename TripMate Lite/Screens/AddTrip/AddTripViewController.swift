@@ -13,6 +13,7 @@ final class AddTripViewController: UIViewController {
     var onTripUpdated: ((Trip) -> Void)?
     
     private let editingTrip: Trip?
+    private let folderID: UUID?
     
     private struct RouteStepInput {
         let id = UUID()
@@ -106,15 +107,22 @@ final class AddTripViewController: UIViewController {
     
     private let saveButton = UIButton(type: .system)
     
+    private var selectedFolderID: UUID?
+    private let folderSectionStackView = UIStackView()
+    private let folderValueLabel = UILabel()
+    private let folderButton = UIButton(type: .system)
+    
     private let notePlaceholder = "First stop of my Eurotrip..."
     
-    init(trip: Trip? = nil) {
+    init(trip: Trip? = nil, folderID: UUID? = nil) {
         self.editingTrip = trip
+        self.folderID = folderID
         super.init(nibName: nil, bundle: nil)
     }
 
     required init?(coder: NSCoder) {
         self.editingTrip = nil
+        self.folderID = nil
         super.init(coder: coder)
     }
     
@@ -131,10 +139,16 @@ final class AddTripViewController: UIViewController {
         setupScreenHeader()
         setupContent()
         setupDefaultDatesIfNeeded()
+        setupInitialFolder()
         populateFieldsIfNeeded()
         updateSaveButtonState()
         setupKeyboardDismissGesture()
         setupKeyboardObservers()
+    }
+    
+    private func setupInitialFolder() {
+        selectedFolderID = editingTrip?.folderID ?? folderID
+        updateFolderValueLabel()
     }
     
     private func setupCloseButton() {
@@ -385,6 +399,7 @@ final class AddTripViewController: UIViewController {
         setupNoteTextView()
         
         stackView.addArrangedSubview(makeBasicTripInfoSection())
+        stackView.addArrangedSubview(makeFolderSection())
         stackView.addArrangedSubview(makeRoutePlanSection())
         stackView.addArrangedSubview(makeReturnRouteSection())
         stackView.addArrangedSubview(makeHotelDetailsSection())
@@ -412,6 +427,9 @@ final class AddTripViewController: UIViewController {
         }
         
         destinationTextField.text = trip.basicInfo.destination
+        
+        selectedFolderID = trip.folderID
+        updateFolderValueLabel()
         
         if !trip.basicInfo.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             isNoteEnabled = true
@@ -658,6 +676,146 @@ final class AddTripViewController: UIViewController {
         sectionStack.addArrangedSubview(noteSectionStackView)
         
         return sectionStack
+    }
+    
+    private func makeFolderSection() -> UIView {
+        let sectionStack = makeSectionStack(title: "Folder")
+        let card = makeCard()
+        
+        let container = UIView()
+        let titleLabel = makeFieldTitleLabel("Save In")
+        
+        folderValueLabel.font = .systemFont(
+            ofSize: Layout.inputFontSize,
+            weight: .medium
+        )
+        folderValueLabel.textColor = .label
+        
+        let chevronImageView = UIImageView(image: UIImage(systemName: "chevron.right"))
+        chevronImageView.tintColor = .secondaryLabel
+        chevronImageView.contentMode = .scaleAspectFit
+        
+        folderButton.backgroundColor = .clear
+        folderButton.addTarget(
+            self,
+            action: #selector(folderTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(titleLabel)
+        container.addSubview(folderValueLabel)
+        container.addSubview(chevronImageView)
+        container.addSubview(folderButton)
+        
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+        folderValueLabel.translatesAutoresizingMaskIntoConstraints = false
+        chevronImageView.translatesAutoresizingMaskIntoConstraints = false
+        folderButton.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            titleLabel.topAnchor.constraint(
+                equalTo: container.topAnchor,
+                constant: Layout.fieldVerticalPadding
+            ),
+            titleLabel.leadingAnchor.constraint(
+                equalTo: container.leadingAnchor,
+                constant: Layout.fieldHorizontalPadding
+            ),
+            titleLabel.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            
+            folderValueLabel.topAnchor.constraint(
+                equalTo: titleLabel.bottomAnchor,
+                constant: 6
+            ),
+            folderValueLabel.leadingAnchor.constraint(equalTo: titleLabel.leadingAnchor),
+            folderValueLabel.trailingAnchor.constraint(
+                equalTo: chevronImageView.leadingAnchor,
+                constant: -12
+            ),
+            folderValueLabel.bottomAnchor.constraint(
+                equalTo: container.bottomAnchor,
+                constant: -Layout.fieldVerticalPadding
+            ),
+            
+            chevronImageView.centerYAnchor.constraint(equalTo: folderValueLabel.centerYAnchor),
+            chevronImageView.trailingAnchor.constraint(
+                equalTo: container.trailingAnchor,
+                constant: -Layout.fieldHorizontalPadding
+            ),
+            chevronImageView.widthAnchor.constraint(equalToConstant: 14),
+            chevronImageView.heightAnchor.constraint(equalToConstant: 14),
+            
+            folderButton.topAnchor.constraint(equalTo: container.topAnchor),
+            folderButton.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            folderButton.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            folderButton.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+        ])
+        
+        card.addArrangedSubview(container)
+        sectionStack.addArrangedSubview(card)
+        
+        return sectionStack
+    }
+    
+    @objc private func folderTapped() {
+        let folders = TripStorage.shared.fetchFolders()
+        
+        let alert = UIAlertController(
+            title: "Choose Folder",
+            message: nil,
+            preferredStyle: .actionSheet
+        )
+        
+        let noFolderTitle = selectedFolderID == nil ? "No Folder ✓" : "No Folder"
+        
+        alert.addAction(
+            UIAlertAction(
+                title: noFolderTitle,
+                style: .default
+            ) { [weak self] _ in
+                self?.selectedFolderID = nil
+                self?.updateFolderValueLabel()
+            }
+        )
+        
+        for folder in folders {
+            let isSelected = folder.id == selectedFolderID
+            let title = isSelected ? "\(folder.name) ✓" : folder.name
+            
+            alert.addAction(
+                UIAlertAction(
+                    title: title,
+                    style: .default
+                ) { [weak self] _ in
+                    self?.selectedFolderID = folder.id
+                    self?.updateFolderValueLabel()
+                }
+            )
+        }
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        present(alert, animated: true)
+    }
+
+    private func updateFolderValueLabel() {
+        guard let selectedFolderID else {
+            folderValueLabel.text = "No Folder"
+            return
+        }
+        
+        let folders = TripStorage.shared.fetchFolders()
+        let folderName = folders.first { $0.id == selectedFolderID }?.name ?? "Unknown Folder"
+        
+        folderValueLabel.text = folderName
     }
     
     private func makeRoutePlanSection() -> UIView {
@@ -2158,8 +2316,151 @@ final class AddTripViewController: UIViewController {
         }
         : []
         
+        finishSavingTrip(
+            folderID: selectedFolderID,
+            destination: destination,
+            startDate: startDate,
+            endDate: endDate,
+            note: note,
+            transportType: transportType,
+            from: from,
+            to: to,
+            departureDate: departureDate,
+            arrivalDate: arrivalDate,
+            company: company,
+            bookingNumber: bookingNumber,
+            routeSteps: routeSteps,
+            returnRouteSteps: returnRouteSteps,
+            hotelName: hotelName,
+            address: address,
+            checkInDate: checkInDate,
+            checkOutDate: checkOutDate
+        )
+    }
+    
+    private func showFolderSelectionBeforeSaving(
+        folders: [TripFolder],
+        currentFolderID: UUID?,
+        destination: String,
+        startDate: Date,
+        endDate: Date,
+        note: String,
+        transportType: String,
+        from: String,
+        to: String,
+        departureDate: Date,
+        arrivalDate: Date,
+        company: String,
+        bookingNumber: String,
+        routeSteps: [TransportSegment],
+        returnRouteSteps: [TransportSegment],
+        hotelName: String,
+        address: String,
+        checkInDate: Date,
+        checkOutDate: Date
+    ) {
+        let alert = UIAlertController(
+            title: editingTrip == nil ? "Save to folder?" : "Move to folder?",
+            message: "Choose where to save this trip.",
+            preferredStyle: .actionSheet
+        )
+        
+        let noFolderTitle = currentFolderID == nil ? "No Folder ✓" : "No Folder"
+        
+        alert.addAction(
+            UIAlertAction(
+                title: noFolderTitle,
+                style: .default
+            ) { [weak self] _ in
+                self?.finishSavingTrip(
+                    folderID: nil,
+                    destination: destination,
+                    startDate: startDate,
+                    endDate: endDate,
+                    note: note,
+                    transportType: transportType,
+                    from: from,
+                    to: to,
+                    departureDate: departureDate,
+                    arrivalDate: arrivalDate,
+                    company: company,
+                    bookingNumber: bookingNumber,
+                    routeSteps: routeSteps,
+                    returnRouteSteps: returnRouteSteps,
+                    hotelName: hotelName,
+                    address: address,
+                    checkInDate: checkInDate,
+                    checkOutDate: checkOutDate
+                )
+            }
+        )
+        
+        for folder in folders {
+            let isCurrentFolder = folder.id == currentFolderID
+            let title = isCurrentFolder ? "\(folder.name) ✓" : folder.name
+            
+            alert.addAction(
+                UIAlertAction(
+                    title: title,
+                    style: .default
+                ) { [weak self] _ in
+                    self?.finishSavingTrip(
+                        folderID: folder.id,
+                        destination: destination,
+                        startDate: startDate,
+                        endDate: endDate,
+                        note: note,
+                        transportType: transportType,
+                        from: from,
+                        to: to,
+                        departureDate: departureDate,
+                        arrivalDate: arrivalDate,
+                        company: company,
+                        bookingNumber: bookingNumber,
+                        routeSteps: routeSteps,
+                        returnRouteSteps: returnRouteSteps,
+                        hotelName: hotelName,
+                        address: address,
+                        checkInDate: checkInDate,
+                        checkOutDate: checkOutDate
+                    )
+                }
+            )
+        }
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        present(alert, animated: true)
+    }
+
+    private func finishSavingTrip(
+        folderID: UUID?,
+        destination: String,
+        startDate: Date,
+        endDate: Date,
+        note: String,
+        transportType: String,
+        from: String,
+        to: String,
+        departureDate: Date,
+        arrivalDate: Date,
+        company: String,
+        bookingNumber: String,
+        routeSteps: [TransportSegment],
+        returnRouteSteps: [TransportSegment],
+        hotelName: String,
+        address: String,
+        checkInDate: Date,
+        checkOutDate: Date
+    ) {
         let result = viewModel.makeTrip(
             tripID: editingTrip?.id ?? UUID(),
+            folderID: folderID,
             destination: destination,
             startDate: startDate,
             endDate: endDate,

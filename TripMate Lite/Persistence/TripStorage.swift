@@ -26,6 +26,8 @@ final class TripStorage {
         
         entity.id = trip.id
         
+        entity.folderID = trip.folderID
+        
         entity.destination = trip.basicInfo.destination
         entity.startDate = trip.basicInfo.startDate
         entity.endDate = trip.basicInfo.endDate
@@ -71,6 +73,8 @@ final class TripStorage {
             guard let entity = entities.first else {
                 return
             }
+            
+            entity.folderID = trip.folderID
             
             entity.destination = trip.basicInfo.destination
             entity.startDate = trip.basicInfo.startDate
@@ -126,6 +130,40 @@ final class TripStorage {
         }
     }
     
+    func deleteFolder(_ folder: TripFolder) {
+        let tripRequest: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        tripRequest.predicate = NSPredicate(
+            format: "folderID == %@",
+            folder.id as CVarArg
+        )
+        
+        do {
+            let tripEntities = try context.fetch(tripRequest)
+            
+            for tripEntity in tripEntities {
+                tripEntity.folderID = nil
+            }
+            
+            let folderRequest: NSFetchRequest<TripFolderEntity> = TripFolderEntity.fetchRequest()
+            
+            folderRequest.predicate = NSPredicate(
+                format: "id == %@",
+                folder.id as CVarArg
+            )
+            
+            let folderEntities = try context.fetch(folderRequest)
+            
+            if let folderEntity = folderEntities.first {
+                context.delete(folderEntity)
+            }
+            
+            saveContext()
+        } catch {
+            print("Failed to delete folder:", error)
+        }
+    }
+    
     func deleteTrip(_ trip: Trip) {
         let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
         
@@ -143,6 +181,28 @@ final class TripStorage {
             }
         } catch {
             print("Failed to delete trip:", error)
+        }
+    }
+    
+    func moveTrip(_ trip: Trip, to folderID: UUID?) {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "id == %@",
+            trip.id as CVarArg
+        )
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            guard let entity = entities.first else {
+                return
+            }
+            
+            entity.folderID = folderID
+            saveContext()
+        } catch {
+            print("Failed to move trip:", error)
         }
     }
     
@@ -275,6 +335,7 @@ final class TripStorage {
         
         return Trip(
             id: entity.id ?? UUID(),
+            folderID: entity.folderID,
             basicInfo: basicInfo,
             transportDetails: transportDetails,
             routeSteps: routeSteps,
@@ -329,6 +390,107 @@ final class TripStorage {
                     bookingNumber: segmentEntity.bookingNumber ?? ""
                 )
             }
+    }
+    
+    func saveFolder(_ folder: TripFolder) {
+        let entity = TripFolderEntity(context: context)
+        
+        entity.id = folder.id
+        entity.name = folder.name
+        entity.colorName = folder.colorName
+        entity.createdAt = folder.createdAt
+        
+        saveContext()
+    }
+
+    func fetchFolders() -> [TripFolder] {
+        let request: NSFetchRequest<TripFolderEntity> = TripFolderEntity.fetchRequest()
+        
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "createdAt", ascending: true)
+        ]
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            return entities.map {
+                TripFolder(
+                    id: $0.id ?? UUID(),
+                    name: $0.name ?? "",
+                    colorName: $0.colorName ?? "blue",
+                    createdAt: $0.createdAt ?? Date()
+                )
+            }
+        } catch {
+            print("Failed to fetch folders:", error)
+            return []
+        }
+    }
+
+    func deleteTripFolder(_ folder: TripFolder) {
+        let request: NSFetchRequest<TripFolderEntity> = TripFolderEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "id == %@",
+            folder.id as CVarArg
+        )
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            if let entityToDelete = entities.first {
+                context.delete(entityToDelete)
+                saveContext()
+            }
+        } catch {
+            print("Failed to delete folder:", error)
+        }
+    }
+    
+    func updateFolder(_ folder: TripFolder) {
+        let request: NSFetchRequest<TripFolderEntity> = TripFolderEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "id == %@",
+            folder.id as CVarArg
+        )
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            guard let entity = entities.first else {
+                return
+            }
+            
+            entity.name = folder.name
+            entity.colorName = folder.colorName
+            entity.createdAt = folder.createdAt
+            
+            saveContext()
+        } catch {
+            print("Failed to update folder:", error)
+        }
+    }
+    
+    func removeFolderFromTrips(folderID: UUID) {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "folderID == %@",
+            folderID as CVarArg
+        )
+        
+        do {
+            let entities = try context.fetch(request)
+            
+            for entity in entities {
+                entity.folderID = nil
+            }
+            
+            saveContext()
+        } catch {
+            print("Failed to remove folder from trips:", error)
+        }
     }
     
     private func saveContext() {

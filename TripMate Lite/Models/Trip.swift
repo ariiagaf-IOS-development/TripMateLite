@@ -7,6 +7,7 @@ import Foundation
 
 struct Trip {
     let id: UUID
+    let folderID: UUID?
     let basicInfo: BasicTripInfo
     let transportDetails: TransportDetails
     let routeSteps: [TransportSegment]
@@ -22,6 +23,7 @@ struct Trip {
     
     init(
         id: UUID,
+        folderID: UUID? = nil,
         basicInfo: BasicTripInfo,
         transportDetails: TransportDetails,
         routeSteps: [TransportSegment] = [],
@@ -33,6 +35,7 @@ struct Trip {
         returnRouteSteps: [TransportSegment] = []
     ) {
         self.id = id
+        self.folderID = folderID
         self.basicInfo = basicInfo
         self.transportDetails = transportDetails
         

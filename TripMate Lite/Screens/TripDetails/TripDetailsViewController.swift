@@ -14,6 +14,12 @@ final class TripDetailsViewController: UIViewController {
     private let titleLabel = UILabel()
     private let dateLabel = UILabel()
     
+    private let folderBadgeView = UIView()
+    private let folderBadgeIconView = UIImageView()
+    private let folderBadgeLabel = UILabel()
+    
+    private let folderBadgeActionLabel = UILabel()
+    
     private let scrollView = UIScrollView()
     private let contentView = UIView()
     private let stackView = UIStackView()
@@ -60,6 +66,7 @@ final class TripDetailsViewController: UIViewController {
         setupEditButton()
         setupCloseButton()
         setupHeader()
+        setupFolderBadge()
         setupScrollView()
         setupStackView()
         setupDetailsContent()
@@ -74,6 +81,211 @@ final class TripDetailsViewController: UIViewController {
         )
     }
     
+    private func showMoveTripOptions() {
+        let folders = TripStorage.shared.fetchFolders()
+        
+        let alert = UIAlertController(
+            title: "Move trip",
+            message: "Choose where to move this trip.",
+            preferredStyle: .actionSheet
+        )
+        
+        let noFolderTitle = trip.folderID == nil ? "No Folder ✓" : "No Folder"
+        
+        alert.addAction(
+            UIAlertAction(
+                title: noFolderTitle,
+                style: .default
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                
+                TripStorage.shared.moveTrip(self.trip, to: nil)
+                self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
+                self.reloadDetails()
+                
+                self.showToast(
+                    "Moved to No Folder",
+                    iconName: "tray.fill",
+                    tintColor: .systemGray
+                )
+            }
+        )
+        
+        for folder in folders {
+            let isCurrentFolder = folder.id == trip.folderID
+            let title = isCurrentFolder ? "\(folder.name) ✓" : folder.name
+            
+            alert.addAction(
+                UIAlertAction(
+                    title: title,
+                    style: .default
+                ) { [weak self] _ in
+                    guard let self else {
+                        return
+                    }
+                    
+                    TripStorage.shared.moveTrip(self.trip, to: folder.id)
+                    self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
+                    self.reloadDetails()
+                    
+                    self.showToast(
+                        "Moved to \(folder.name)",
+                        iconName: "folder.fill",
+                        tintColor: folder.colorName.folderUIColor
+                    )
+                }
+            )
+        }
+        
+        let cancelAction = UIAlertAction(
+            title: "Cancel",
+            style: .cancel
+        )
+
+        alert.addAction(cancelAction)
+        alert.preferredAction = cancelAction
+        
+        present(alert, animated: true)
+    }
+    
+    private func confirmDeleteTrip() {
+        let alert = UIAlertController(
+            title: "Delete trip?",
+            message: "This trip will be permanently removed.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Delete",
+                style: .destructive
+            ) { [weak self] _ in
+                guard let self else {
+                    return
+                }
+                
+                TripStorage.shared.deleteTrip(self.trip)
+                self.dismiss(animated: true)
+            }
+        )
+        
+        present(alert, animated: true)
+    }
+    
+    private func setupFolderBadge() {
+        view.addSubview(folderBadgeView)
+        
+        folderBadgeView.addSubview(folderBadgeIconView)
+        folderBadgeView.addSubview(folderBadgeLabel)
+        folderBadgeView.addSubview(folderBadgeActionLabel)
+        
+        folderBadgeView.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeIconView.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeLabel.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeActionLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        folderBadgeView.layer.cornerRadius = 16
+        folderBadgeView.clipsToBounds = true
+        
+        folderBadgeView.isUserInteractionEnabled = true
+
+        let tapGesture = UITapGestureRecognizer(
+            target: self,
+            action: #selector(folderBadgeTapped)
+        )
+
+        folderBadgeView.addGestureRecognizer(tapGesture)
+        
+        folderBadgeIconView.image = UIImage(systemName: "folder.fill")
+        folderBadgeIconView.contentMode = .scaleAspectFit
+        
+        folderBadgeLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+        folderBadgeLabel.numberOfLines = 1
+        
+        folderBadgeActionLabel.text = "Change"
+        folderBadgeActionLabel.font = .systemFont(ofSize: 12, weight: .bold)
+        folderBadgeActionLabel.textAlignment = .center
+        folderBadgeActionLabel.layer.cornerRadius = 10
+        folderBadgeActionLabel.clipsToBounds = true
+        
+        updateFolderBadge()
+        
+        NSLayoutConstraint.activate([
+            folderBadgeView.topAnchor.constraint(
+                equalTo: dateLabel.bottomAnchor,
+                constant: 14
+            ),
+            folderBadgeView.leadingAnchor.constraint(
+                equalTo: titleLabel.leadingAnchor
+            ),
+            folderBadgeView.heightAnchor.constraint(equalToConstant: 32),
+            
+            folderBadgeIconView.leadingAnchor.constraint(
+                equalTo: folderBadgeView.leadingAnchor,
+                constant: 12
+            ),
+            folderBadgeIconView.centerYAnchor.constraint(equalTo: folderBadgeView.centerYAnchor),
+            folderBadgeIconView.widthAnchor.constraint(equalToConstant: 16),
+            folderBadgeIconView.heightAnchor.constraint(equalToConstant: 16),
+            
+            folderBadgeLabel.leadingAnchor.constraint(
+                equalTo: folderBadgeIconView.trailingAnchor,
+                constant: 8
+            ),
+            folderBadgeLabel.trailingAnchor.constraint(
+                equalTo: folderBadgeActionLabel.leadingAnchor,
+                constant: -8
+            ),
+            folderBadgeLabel.centerYAnchor.constraint(equalTo: folderBadgeView.centerYAnchor),
+
+            folderBadgeActionLabel.trailingAnchor.constraint(
+                equalTo: folderBadgeView.trailingAnchor,
+                constant: -8
+            ),
+            folderBadgeActionLabel.centerYAnchor.constraint(equalTo: folderBadgeView.centerYAnchor),
+            folderBadgeActionLabel.widthAnchor.constraint(equalToConstant: 58),
+            folderBadgeActionLabel.heightAnchor.constraint(equalToConstant: 20)
+        ])
+    }
+    
+    @objc private func folderBadgeTapped() {
+        showMoveTripOptions()
+    }
+    
+    private func updateFolderBadge() {
+        guard let folderID = trip.folderID else {
+            folderBadgeLabel.text = "No Folder"
+            folderBadgeLabel.textColor = .secondaryLabel
+            folderBadgeIconView.tintColor = .secondaryLabel
+            folderBadgeActionLabel.textColor = .secondaryLabel
+            folderBadgeActionLabel.backgroundColor = UIColor.systemGray4.withAlphaComponent(0.45)
+            folderBadgeView.backgroundColor = UIColor.systemGray5.withAlphaComponent(0.7)
+            return
+        }
+        
+        let folders = TripStorage.shared.fetchFolders()
+        let folder = folders.first { $0.id == folderID }
+        
+        let folderName = folder?.name ?? "Unknown Folder"
+        let folderColor = folder?.colorName.folderUIColor ?? .systemBlue
+        
+        folderBadgeLabel.text = folderName
+        folderBadgeLabel.textColor = folderColor
+        folderBadgeIconView.tintColor = folderColor
+        folderBadgeActionLabel.textColor = folderColor
+        folderBadgeActionLabel.backgroundColor = folderColor.withAlphaComponent(0.16)
+        folderBadgeView.backgroundColor = folderColor.withAlphaComponent(0.12)
+    }
+    
     @objc private func editButtonTapped() {
         let editViewController = AddTripViewController(trip: trip)
         
@@ -85,6 +297,14 @@ final class TripDetailsViewController: UIViewController {
             TripStorage.shared.updateTrip(updatedTrip)
             self.trip = updatedTrip
             self.reloadDetails()
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                self.showToast(
+                    "Trip updated",
+                    iconName: "checkmark.circle.fill",
+                    tintColor: .systemBlue
+                )
+            }
         }
         
         let navigationController = UINavigationController(
@@ -114,6 +334,8 @@ final class TripDetailsViewController: UIViewController {
         let startDate = trip.basicInfo.startDate.tripDateString
         let endDate = trip.basicInfo.endDate.tripDateString
         dateLabel.text = "\(startDate) — \(endDate)"
+        
+        updateFolderBadge()
         
         stackView.arrangedSubviews.forEach { view in
             stackView.removeArrangedSubview(view)
@@ -177,7 +399,7 @@ final class TripDetailsViewController: UIViewController {
         
         NSLayoutConstraint.activate([
             scrollView.topAnchor.constraint(
-                equalTo: dateLabel.bottomAnchor,
+                equalTo: folderBadgeView.bottomAnchor,
                 constant: Layout.headerToContentSpacing
             ),
             scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -991,6 +1213,115 @@ final class TripDetailsViewController: UIViewController {
         ])
         
         return container
+    }
+    
+    private func showToast(
+        _ message: String,
+        iconName: String = "checkmark.circle.fill",
+        tintColor: UIColor = .systemBlue
+    ) {
+        let containerView = UIView()
+        containerView.backgroundColor = UIColor.secondarySystemBackground.withAlphaComponent(0.96)
+        containerView.layer.cornerRadius = 20
+        containerView.layer.shadowColor = UIColor.black.cgColor
+        containerView.layer.shadowOpacity = 0.14
+        containerView.layer.shadowOffset = CGSize(width: 0, height: 8)
+        containerView.layer.shadowRadius = 18
+        containerView.alpha = 0
+        containerView.transform = CGAffineTransform(translationX: 0, y: 16)
+        
+        let iconContainerView = UIView()
+        iconContainerView.backgroundColor = tintColor.withAlphaComponent(0.12)
+        iconContainerView.layer.cornerRadius = 16
+        iconContainerView.clipsToBounds = true
+        
+        let iconImageView = UIImageView(image: UIImage(systemName: iconName))
+        iconImageView.tintColor = tintColor
+        iconImageView.contentMode = .scaleAspectFit
+        
+        let messageLabel = UILabel()
+        messageLabel.text = message
+        messageLabel.textColor = .label
+        messageLabel.font = .systemFont(ofSize: 15, weight: .semibold)
+        messageLabel.numberOfLines = 2
+        
+        view.addSubview(containerView)
+        containerView.addSubview(iconContainerView)
+        iconContainerView.addSubview(iconImageView)
+        containerView.addSubview(messageLabel)
+        
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        iconContainerView.translatesAutoresizingMaskIntoConstraints = false
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            containerView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            containerView.bottomAnchor.constraint(
+                equalTo: view.safeAreaLayoutGuide.bottomAnchor,
+                constant: -24
+            ),
+            containerView.leadingAnchor.constraint(
+                greaterThanOrEqualTo: view.leadingAnchor,
+                constant: 20
+            ),
+            containerView.trailingAnchor.constraint(
+                lessThanOrEqualTo: view.trailingAnchor,
+                constant: -20
+            ),
+            
+            iconContainerView.leadingAnchor.constraint(
+                equalTo: containerView.leadingAnchor,
+                constant: 14
+            ),
+            iconContainerView.topAnchor.constraint(
+                equalTo: containerView.topAnchor,
+                constant: 12
+            ),
+            iconContainerView.bottomAnchor.constraint(
+                equalTo: containerView.bottomAnchor,
+                constant: -12
+            ),
+            iconContainerView.widthAnchor.constraint(equalToConstant: 32),
+            iconContainerView.heightAnchor.constraint(equalToConstant: 32),
+            
+            iconImageView.centerXAnchor.constraint(equalTo: iconContainerView.centerXAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: iconContainerView.centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 18),
+            iconImageView.heightAnchor.constraint(equalToConstant: 18),
+            
+            messageLabel.leadingAnchor.constraint(
+                equalTo: iconContainerView.trailingAnchor,
+                constant: 10
+            ),
+            messageLabel.trailingAnchor.constraint(
+                equalTo: containerView.trailingAnchor,
+                constant: -16
+            ),
+            messageLabel.centerYAnchor.constraint(equalTo: iconContainerView.centerYAnchor)
+        ])
+        
+        UIView.animate(
+            withDuration: 0.28,
+            delay: 0,
+            usingSpringWithDamping: 0.82,
+            initialSpringVelocity: 0.4,
+            options: [.curveEaseOut]
+        ) {
+            containerView.alpha = 1
+            containerView.transform = .identity
+        }
+        
+        UIView.animate(
+            withDuration: 0.25,
+            delay: 1.5,
+            options: [.curveEaseIn]
+        ) {
+            containerView.alpha = 0
+            containerView.transform = CGAffineTransform(translationX: 0, y: 12)
+        } completion: { _ in
+            containerView.removeFromSuperview()
+        }
     }
     
     private func makeSeparator() -> UIView {

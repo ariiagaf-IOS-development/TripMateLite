@@ -144,6 +144,27 @@ final class MainTabBarController: UITabBarController {
         openAddTripScreen()
     }
     
+    private func showAddOptionsFromTripsList() {
+        selectedIndex = 0
+        
+        guard let navigationController = viewControllers?.first as? UINavigationController else {
+            openAddTripScreen()
+            return
+        }
+        
+        if let folderTripsViewController = navigationController.topViewController as? FolderTripsViewController {
+            folderTripsViewController.addTripTapped()
+            return
+        }
+        
+        if let tripsListViewController = navigationController.viewControllers.first as? TripsListViewController {
+            tripsListViewController.showAddOptions()
+            return
+        }
+        
+        openAddTripScreen()
+    }
+    
     func openAddTripScreen() {
         let addTripViewController = AddTripViewController()
         
@@ -154,7 +175,25 @@ final class MainTabBarController: UITabBarController {
             
             if let navigationController = self?.viewControllers?.first as? UINavigationController,
                let tripsListViewController = navigationController.viewControllers.first as? TripsListViewController {
+                
                 tripsListViewController.loadTrips()
+
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                    if let folderID = trip.folderID,
+                       let folder = TripStorage.shared.fetchFolders().first(where: { $0.id == folderID }) {
+                        tripsListViewController.showToast(
+                            "Saved to \(folder.name)",
+                            iconName: "folder.fill",
+                            tintColor: folder.colorName.folderUIColor
+                        )
+                    } else {
+                        tripsListViewController.showToast(
+                            "Trip saved",
+                            iconName: "checkmark.circle.fill",
+                            tintColor: .systemBlue
+                        )
+                    }
+                }
             }
         }
         
@@ -182,7 +221,7 @@ extension MainTabBarController: UITabBarControllerDelegate {
         }
         
         if index == 1 {
-            openAddTripScreen()
+            showAddOptionsFromTripsList()
             return false
         }
         

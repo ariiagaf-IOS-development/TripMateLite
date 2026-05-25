@@ -38,6 +38,10 @@ final class TripTableViewCell: UITableViewCell {
     private let destinationLabel = UILabel()
     private let dateLabel = UILabel()
     
+    private let folderBadgeView = UIView()
+    private let folderBadgeIconImageView = UIImageView()
+    private let folderBadgeLabel = UILabel()
+    
     private let routeIconContainerView = UIView()
     private let routeIconImageView = UIImageView()
     private let routeTitleLabel = UILabel()
@@ -59,7 +63,7 @@ final class TripTableViewCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func configure(with trip: Trip) {
+    func configure(with trip: Trip, folder: TripFolder? = nil) {
         destinationLabel.text = trip.basicInfo.destination
         
         let startDate = trip.basicInfo.startDate.tripDateString
@@ -105,6 +109,17 @@ final class TripTableViewCell: UITableViewCell {
         } else {
             hotelNameLabel.text = hotelName
         }
+        
+        if let folder {
+            folderBadgeView.isHidden = false
+            folderBadgeLabel.text = folder.name
+            folderBadgeView.backgroundColor = folder.colorName.folderUIColor.withAlphaComponent(0.10)
+            folderBadgeIconImageView.tintColor = folder.colorName.folderUIColor
+            folderBadgeLabel.textColor = folder.colorName.folderUIColor
+        } else {
+            folderBadgeView.isHidden = true
+            folderBadgeLabel.text = nil
+        }
     }
     
     private func setupUI() {
@@ -128,6 +143,16 @@ final class TripTableViewCell: UITableViewCell {
         )
         dateLabel.textColor = .secondaryLabel
         
+        folderBadgeView.layer.cornerRadius = 13
+        folderBadgeView.clipsToBounds = true
+        folderBadgeView.isHidden = true
+
+        folderBadgeIconImageView.image = UIImage(systemName: "folder.fill")
+        folderBadgeIconImageView.contentMode = .scaleAspectFit
+
+        folderBadgeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
+        folderBadgeLabel.numberOfLines = 1
+        
         setupIconContainer(
             routeIconContainerView,
             imageView: routeIconImageView,
@@ -150,8 +175,7 @@ final class TripTableViewCell: UITableViewCell {
     private func setupConstraints() {
         containerView.translatesAutoresizingMaskIntoConstraints = false
         
-        containerView.addSubview(destinationLabel)
-        containerView.addSubview(dateLabel)
+        contentView.addSubview(containerView)
         
         let routeRow = makeInfoRow(
             iconContainerView: routeIconContainerView,
@@ -169,11 +193,43 @@ final class TripTableViewCell: UITableViewCell {
         infoStackView.axis = .vertical
         infoStackView.spacing = Layout.infoRowSpacing
         
-        containerView.addSubview(infoStackView)
+        folderBadgeView.addSubview(folderBadgeIconImageView)
+        folderBadgeView.addSubview(folderBadgeLabel)
+        
+        let mainStackView = UIStackView(arrangedSubviews: [
+            destinationLabel,
+            dateLabel,
+            folderBadgeView,
+            infoStackView
+        ])
+        
+        mainStackView.axis = .vertical
+        mainStackView.spacing = 0
+        
+        mainStackView.setCustomSpacing(
+            Layout.destinationToDateSpacing,
+            after: destinationLabel
+        )
+        
+        mainStackView.setCustomSpacing(
+            10,
+            after: dateLabel
+        )
+        
+        mainStackView.setCustomSpacing(
+            Layout.dateToInfoSpacing,
+            after: folderBadgeView
+        )
+        
+        containerView.addSubview(mainStackView)
         
         destinationLabel.translatesAutoresizingMaskIntoConstraints = false
         dateLabel.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeView.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeIconImageView.translatesAutoresizingMaskIntoConstraints = false
+        folderBadgeLabel.translatesAutoresizingMaskIntoConstraints = false
         infoStackView.translatesAutoresizingMaskIntoConstraints = false
+        mainStackView.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             containerView.topAnchor.constraint(
@@ -193,35 +249,48 @@ final class TripTableViewCell: UITableViewCell {
                 constant: -Layout.cardVerticalPadding
             ),
             
-            destinationLabel.topAnchor.constraint(
+            mainStackView.topAnchor.constraint(
                 equalTo: containerView.topAnchor,
                 constant: Layout.contentPadding
             ),
-            destinationLabel.leadingAnchor.constraint(
+            mainStackView.leadingAnchor.constraint(
                 equalTo: containerView.leadingAnchor,
                 constant: Layout.contentPadding
             ),
-            destinationLabel.trailingAnchor.constraint(
+            mainStackView.trailingAnchor.constraint(
                 equalTo: containerView.trailingAnchor,
                 constant: -Layout.contentPadding
             ),
-            
-            dateLabel.topAnchor.constraint(
-                equalTo: destinationLabel.bottomAnchor,
-                constant: Layout.destinationToDateSpacing
-            ),
-            dateLabel.leadingAnchor.constraint(equalTo: destinationLabel.leadingAnchor),
-            dateLabel.trailingAnchor.constraint(equalTo: destinationLabel.trailingAnchor),
-            
-            infoStackView.topAnchor.constraint(
-                equalTo: dateLabel.bottomAnchor,
-                constant: Layout.dateToInfoSpacing
-            ),
-            infoStackView.leadingAnchor.constraint(equalTo: destinationLabel.leadingAnchor),
-            infoStackView.trailingAnchor.constraint(equalTo: destinationLabel.trailingAnchor),
-            infoStackView.bottomAnchor.constraint(
+            mainStackView.bottomAnchor.constraint(
                 equalTo: containerView.bottomAnchor,
                 constant: -Layout.contentPadding
+            ),
+            
+            folderBadgeView.heightAnchor.constraint(equalToConstant: 26),
+            folderBadgeView.widthAnchor.constraint(
+                lessThanOrEqualTo: mainStackView.widthAnchor
+            ),
+            
+            folderBadgeIconImageView.leadingAnchor.constraint(
+                equalTo: folderBadgeView.leadingAnchor,
+                constant: 10
+            ),
+            folderBadgeIconImageView.centerYAnchor.constraint(
+                equalTo: folderBadgeView.centerYAnchor
+            ),
+            folderBadgeIconImageView.widthAnchor.constraint(equalToConstant: 14),
+            folderBadgeIconImageView.heightAnchor.constraint(equalToConstant: 14),
+            
+            folderBadgeLabel.leadingAnchor.constraint(
+                equalTo: folderBadgeIconImageView.trailingAnchor,
+                constant: 6
+            ),
+            folderBadgeLabel.trailingAnchor.constraint(
+                equalTo: folderBadgeView.trailingAnchor,
+                constant: -10
+            ),
+            folderBadgeLabel.centerYAnchor.constraint(
+                equalTo: folderBadgeView.centerYAnchor
             )
         ])
     }
