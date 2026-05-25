@@ -30,6 +30,35 @@
         <attribute name="transportType" optional="YES" attributeType="String"/>
         <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="routeSegments" inverseEntity="TripEntity"/>
     </entity>
+    <entity name="TripActivityEntity" representedClassName="TripActivityEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="bookingNumber" optional="YES" attributeType="String"/>
+        <attribute name="date" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="hasReturnRoute" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="hasRouteDetails" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="hasTime" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isBooked" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
+        <attribute name="location" optional="YES" attributeType="String"/>
+        <attribute name="note" optional="YES" attributeType="String"/>
+        <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="returnRouteArrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="returnRouteBookingNumber" optional="YES" attributeType="String"/>
+        <attribute name="returnRouteCompany" optional="YES" attributeType="String"/>
+        <attribute name="returnRouteDepartureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="returnRouteFrom" optional="YES" attributeType="String"/>
+        <attribute name="returnRouteTo" optional="YES" attributeType="String"/>
+        <attribute name="returnRouteTransportType" optional="YES" attributeType="String"/>
+        <attribute name="routeArrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="routeBookingNumber" optional="YES" attributeType="String"/>
+        <attribute name="routeCompany" optional="YES" attributeType="String"/>
+        <attribute name="routeDepartureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="routeFrom" optional="YES" attributeType="String"/>
+        <attribute name="routeTo" optional="YES" attributeType="String"/>
+        <attribute name="routeTransportType" optional="YES" attributeType="String"/>
+        <attribute name="time" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="trip" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="TripEntity" inverseName="activities" inverseEntity="TripEntity"/>
+    </entity>
     <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">
         <attribute name="address" attributeType="String"/>
         <attribute name="arrivalDate" attributeType="Date" usesScalarValueType="NO"/>
@@ -58,6 +87,7 @@
         <attribute name="startDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="to" attributeType="String"/>
         <attribute name="transportType" attributeType="String"/>
+        <relationship name="activities" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TripActivityEntity" inverseName="trip" inverseEntity="TripActivityEntity"/>
         <relationship name="checklistItems" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ChecklistItemEntity" inverseName="trip" inverseEntity="ChecklistItemEntity"/>
         <relationship name="returnSegments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ReturnSegmentEntity" inverseName="trip" inverseEntity="ReturnSegmentEntity"/>
         <relationship name="routeSegments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="TransportSegmentEntity" inverseName="trip" inverseEntity="TransportSegmentEntity"/>

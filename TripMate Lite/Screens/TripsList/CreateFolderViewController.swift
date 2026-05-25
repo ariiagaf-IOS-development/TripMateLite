@@ -9,14 +9,16 @@ import UIKit
 
 final class CreateFolderViewController: UIViewController {
     
+    var onFolderDeleted: ((TripFolder) -> Void)?
+    
+    private var initialFormSnapshot = ""
+    
     private let editingFolder: TripFolder?
     var onFolderUpdated: ((TripFolder) -> Void)?
     var onFolderCreated: ((TripFolder) -> Void)?
-    var onFolderDeleted: ((TripFolder) -> Void)?
     
     private let nameTextField = UITextField()
     private let saveButton = UIButton(type: .system)
-    private let deleteButton = UIButton(type: .system)
     private let colorsStackView = UIStackView()
     
     private let availableColors = [
@@ -61,7 +63,9 @@ final class CreateFolderViewController: UIViewController {
         navigationItem.title = "TripMate"
         
         setupCloseButton()
+        setupDeleteButtonIfNeeded()
         setupContent()
+        setupKeyboardDismissGesture()
     }
     
     private func setupCloseButton() {
@@ -73,8 +77,96 @@ final class CreateFolderViewController: UIViewController {
         )
     }
     
+    private func setupDeleteButtonIfNeeded() {
+        guard editingFolder != nil else {
+            return
+        }
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "trash"),
+            style: .plain,
+            target: self,
+            action: #selector(deleteFolderTapped)
+        )
+        
+        navigationItem.rightBarButtonItem?.tintColor = .systemRed
+    }
+    
+    @objc private func deleteFolderTapped() {
+        let alert = UIAlertController(
+            title: "Delete folder?",
+            message: "Trips inside this folder will not be deleted. They will move back to the main list.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Delete",
+                style: .destructive
+            ) { [weak self] _ in
+                guard let self,
+                      let editingFolder = self.editingFolder else {
+                    return
+                }
+                
+                self.onFolderDeleted?(editingFolder)
+                self.dismiss(animated: true)
+            }
+        )
+        
+        present(alert, animated: true)
+    }
+    
     @objc private func cancelTapped() {
-        dismiss(animated: true)
+        if hasUnsavedChanges() {
+            showDiscardChangesAlert()
+        } else {
+            dismiss(animated: true)
+        }
+    }
+    
+    private func hasUnsavedChanges() -> Bool {
+        makeFormSnapshot() != initialFormSnapshot
+    }
+
+    private func makeFormSnapshot() -> String {
+        [
+            nameTextField.text ?? "",
+            selectedColorName
+        ].joined(separator: "###")
+    }
+
+    private func showDiscardChangesAlert() {
+        let alert = UIAlertController(
+            title: "Discard changes?",
+            message: "Your folder changes will not be saved.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Discard",
+                style: .destructive
+            ) { [weak self] _ in
+                self?.dismiss(animated: true)
+            }
+        )
+        
+        present(alert, animated: true)
     }
     
     private func setupContent() {
@@ -95,6 +187,8 @@ final class CreateFolderViewController: UIViewController {
         nameTextField.borderStyle = .none
         nameTextField.font = .systemFont(ofSize: 17, weight: .medium)
         nameTextField.autocapitalizationType = .words
+        nameTextField.delegate = self
+        nameTextField.returnKeyType = .done
         nameTextField.addTarget(
             self,
             action: #selector(nameChanged),
@@ -132,18 +226,6 @@ final class CreateFolderViewController: UIViewController {
             for: .touchUpInside
         )
         
-        deleteButton.setTitle("Delete Folder", for: .normal)
-        deleteButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
-        deleteButton.tintColor = .systemRed
-        deleteButton.backgroundColor = UIColor.systemRed.withAlphaComponent(0.10)
-        deleteButton.layer.cornerRadius = 18
-        deleteButton.isHidden = editingFolder == nil
-        deleteButton.addTarget(
-            self,
-            action: #selector(deleteTapped),
-            for: .touchUpInside
-        )
-        
         view.addSubview(titleLabel)
         view.addSubview(cardView)
         cardView.addSubview(nameLabel)
@@ -151,7 +233,6 @@ final class CreateFolderViewController: UIViewController {
         cardView.addSubview(colorLabel)
         cardView.addSubview(colorsStackView)
         view.addSubview(saveButton)
-        view.addSubview(deleteButton)
         
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
         cardView.translatesAutoresizingMaskIntoConstraints = false
@@ -160,7 +241,6 @@ final class CreateFolderViewController: UIViewController {
         colorLabel.translatesAutoresizingMaskIntoConstraints = false
         colorsStackView.translatesAutoresizingMaskIntoConstraints = false
         saveButton.translatesAutoresizingMaskIntoConstraints = false
-        deleteButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
             titleLabel.topAnchor.constraint(
@@ -203,20 +283,6 @@ final class CreateFolderViewController: UIViewController {
             colorsStackView.trailingAnchor.constraint(equalTo: nameLabel.trailingAnchor),
             colorsStackView.heightAnchor.constraint(equalToConstant: Layout.colorButtonSize),
             colorsStackView.bottomAnchor.constraint(equalTo: cardView.bottomAnchor, constant: -18),
-            
-            deleteButton.leadingAnchor.constraint(
-                equalTo: view.leadingAnchor,
-                constant: Layout.horizontalPadding
-            ),
-            deleteButton.trailingAnchor.constraint(
-                equalTo: view.trailingAnchor,
-                constant: -Layout.horizontalPadding
-            ),
-            deleteButton.bottomAnchor.constraint(
-                equalTo: saveButton.topAnchor,
-                constant: -12
-            ),
-            deleteButton.heightAnchor.constraint(equalToConstant: 50),
 
             saveButton.leadingAnchor.constraint(
                 equalTo: view.leadingAnchor,
@@ -234,6 +300,8 @@ final class CreateFolderViewController: UIViewController {
         ])
         
         nameChanged()
+        
+        initialFormSnapshot = makeFormSnapshot()
     }
     
     private func makeColorButton(colorName: String) -> UIButton {
@@ -308,34 +376,25 @@ final class CreateFolderViewController: UIViewController {
         dismiss(animated: true)
     }
     
-    @objc private func deleteTapped() {
-        guard let editingFolder else {
-            return
-        }
-        
-        let alert = UIAlertController(
-            title: "Delete folder?",
-            message: "Trips inside this folder will be moved to No Folder.",
-            preferredStyle: .alert
+    private func setupKeyboardDismissGesture() {
+        let tapGesture = UITapGestureRecognizer(
+            target: self,
+            action: #selector(dismissKeyboard)
         )
         
-        alert.addAction(
-            UIAlertAction(
-                title: "Cancel",
-                style: .cancel
-            )
-        )
-        
-        alert.addAction(
-            UIAlertAction(
-                title: "Delete",
-                style: .destructive
-            ) { [weak self] _ in
-                self?.onFolderDeleted?(editingFolder)
-                self?.dismiss(animated: true)
-            }
-        )
-        
-        present(alert, animated: true)
+        tapGesture.cancelsTouchesInView = false
+        view.addGestureRecognizer(tapGesture)
+    }
+
+    @objc private func dismissKeyboard() {
+        view.endEditing(true)
+    }
+}
+
+extension CreateFolderViewController: UITextFieldDelegate {
+    
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        textField.resignFirstResponder()
+        return true
     }
 }

@@ -11,6 +11,8 @@ final class TripDetailsViewController: UIViewController {
     
     private var trip: Trip
     
+    private let activitiesListStackView = UIStackView()
+    
     private let titleLabel = UILabel()
     private let dateLabel = UILabel()
     
@@ -19,6 +21,12 @@ final class TripDetailsViewController: UIViewController {
     private let folderBadgeLabel = UILabel()
     
     private let folderBadgeActionLabel = UILabel()
+    
+    private let activitiesTableView = UITableView()
+    private var activitiesTableHeightConstraint: NSLayoutConstraint?
+    
+    private let checklistTableView = UITableView()
+    private var checklistTableHeightConstraint: NSLayoutConstraint?
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
@@ -69,7 +77,44 @@ final class TripDetailsViewController: UIViewController {
         setupFolderBadge()
         setupScrollView()
         setupStackView()
+        setupChecklistTableView()
         setupDetailsContent()
+    }
+    
+    private func setupActivitiesTableView() {
+        activitiesTableView.backgroundColor = .clear
+        activitiesTableView.backgroundView = nil
+        activitiesTableView.separatorStyle = .none
+        activitiesTableView.showsVerticalScrollIndicator = false
+        activitiesTableView.isScrollEnabled = false
+        
+        activitiesTableView.sectionHeaderTopPadding = 0
+        activitiesTableView.contentInset = .zero
+        activitiesTableView.layoutMargins = .zero
+        
+        activitiesTableView.dataSource = self
+        activitiesTableView.delegate = self
+        
+        activitiesTableView.register(
+            ActivityTableViewCell.self,
+            forCellReuseIdentifier: ActivityTableViewCell.identifier
+        )
+    }
+    
+    private func setupChecklistTableView() {
+        checklistTableView.backgroundColor = .clear
+        checklistTableView.separatorStyle = .none
+        checklistTableView.showsVerticalScrollIndicator = false
+        checklistTableView.isScrollEnabled = false
+        checklistTableView.rowHeight = 46
+        
+        checklistTableView.dataSource = self
+        checklistTableView.delegate = self
+        
+        checklistTableView.register(
+            UITableViewCell.self,
+            forCellReuseIdentifier: "ChecklistCell"
+        )
     }
     
     private func setupEditButton() {
@@ -81,73 +126,44 @@ final class TripDetailsViewController: UIViewController {
         )
     }
     
+    @objc private func deleteTripTapped() {
+        confirmDeleteTrip()
+    }
+    
     private func showMoveTripOptions() {
         let folders = TripStorage.shared.fetchFolders()
         
-        let alert = UIAlertController(
-            title: "Move trip",
-            message: "Choose where to move this trip.",
-            preferredStyle: .actionSheet
+        let folderPickerViewController = FolderPickerViewController(
+            folders: folders,
+            selectedFolderID: trip.folderID
         )
         
-        let noFolderTitle = trip.folderID == nil ? "No Folder ✓" : "No Folder"
-        
-        alert.addAction(
-            UIAlertAction(
-                title: noFolderTitle,
-                style: .default
-            ) { [weak self] _ in
-                guard let self else {
-                    return
-                }
-                
-                TripStorage.shared.moveTrip(self.trip, to: nil)
-                self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
-                self.reloadDetails()
-                
+        folderPickerViewController.onFolderSelected = { [weak self] folderID in
+            guard let self else {
+                return
+            }
+            
+            TripStorage.shared.moveTrip(self.trip, to: folderID)
+            self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
+            self.reloadDetails()
+            
+            if let folderID,
+               let folder = folders.first(where: { $0.id == folderID }) {
+                self.showToast(
+                    "Moved to \(folder.name)",
+                    iconName: "folder.fill",
+                    tintColor: folder.colorName.folderUIColor
+                )
+            } else {
                 self.showToast(
                     "Moved to No Folder",
                     iconName: "tray.fill",
                     tintColor: .systemGray
                 )
             }
-        )
-        
-        for folder in folders {
-            let isCurrentFolder = folder.id == trip.folderID
-            let title = isCurrentFolder ? "\(folder.name) ✓" : folder.name
-            
-            alert.addAction(
-                UIAlertAction(
-                    title: title,
-                    style: .default
-                ) { [weak self] _ in
-                    guard let self else {
-                        return
-                    }
-                    
-                    TripStorage.shared.moveTrip(self.trip, to: folder.id)
-                    self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
-                    self.reloadDetails()
-                    
-                    self.showToast(
-                        "Moved to \(folder.name)",
-                        iconName: "folder.fill",
-                        tintColor: folder.colorName.folderUIColor
-                    )
-                }
-            )
         }
         
-        let cancelAction = UIAlertAction(
-            title: "Cancel",
-            style: .cancel
-        )
-
-        alert.addAction(cancelAction)
-        alert.preferredAction = cancelAction
-        
-        present(alert, animated: true)
+        present(folderPickerViewController, animated: true)
     }
     
     private func confirmDeleteTrip() {
@@ -307,6 +323,11 @@ final class TripDetailsViewController: UIViewController {
             }
         }
         
+        editViewController.onTripDeleted = { [weak self] deletedTrip in
+            TripStorage.shared.deleteTrip(deletedTrip)
+            self?.dismiss(animated: true)
+        }
+        
         let navigationController = UINavigationController(
             rootViewController: editViewController
         )
@@ -317,7 +338,7 @@ final class TripDetailsViewController: UIViewController {
     
     private func setupCloseButton() {
         navigationItem.leftBarButtonItem = UIBarButtonItem(
-            image: UIImage(systemName: "xmark"),
+            image: UIImage(systemName: "chevron.left"),
             style: .plain,
             target: self,
             action: #selector(closeButtonTapped)
@@ -443,6 +464,7 @@ final class TripDetailsViewController: UIViewController {
         addRouteSection()
         addReturnRouteSection()
         addHotelSection()
+        addActivitiesSection()
         addNoteSectionIfNeeded()
         addChecklistSection()
     }
@@ -775,6 +797,238 @@ final class TripDetailsViewController: UIViewController {
         stackView.addArrangedSubview(sectionStack)
     }
     
+    private func addActivitiesSection() {
+        let sectionStack = makeSectionStack(
+            iconName: "map.fill",
+            title: "Activities"
+        )
+        
+        if trip.activities.isEmpty {
+            let card = makeCardView()
+            
+            let emptyLabel = UILabel()
+            emptyLabel.text = "No activities yet"
+            emptyLabel.font = .systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
+            emptyLabel.textColor = .secondaryLabel
+            emptyLabel.numberOfLines = 0
+            
+            let subtitleLabel = UILabel()
+            subtitleLabel.text = "Add day trips, excursions, tours, or places you want to visit."
+            subtitleLabel.font = .systemFont(ofSize: 14)
+            subtitleLabel.textColor = .secondaryLabel
+            subtitleLabel.numberOfLines = 0
+            
+            card.addArrangedSubview(emptyLabel)
+            card.addArrangedSubview(subtitleLabel)
+            card.addArrangedSubview(makeSeparator())
+            card.addArrangedSubview(makeAddActivityButton())
+            
+            sectionStack.addArrangedSubview(card)
+        } else {
+            activitiesListStackView.axis = .vertical
+            activitiesListStackView.spacing = 12
+            
+            activitiesListStackView.arrangedSubviews.forEach { view in
+                activitiesListStackView.removeArrangedSubview(view)
+                view.removeFromSuperview()
+            }
+            
+            for activity in trip.activities {
+                let card = makeActivityCard(activity)
+                activitiesListStackView.addArrangedSubview(card)
+            }
+            
+            sectionStack.addArrangedSubview(activitiesListStackView)
+            sectionStack.addArrangedSubview(makeAddActivityButton())
+        }
+        
+        stackView.addArrangedSubview(sectionStack)
+    }
+    
+    private func updateActivitiesTableHeight() {
+        activitiesTableView.reloadData()
+        activitiesTableView.layoutIfNeeded()
+        
+        activitiesTableHeightConstraint?.constant = activitiesTableView.contentSize.height
+    }
+    
+    private func openActivityDetails(_ activity: TripActivity) {
+        let activityDetailsViewController = ActivityDetailsViewController(activity: activity)
+        
+        activityDetailsViewController.onActivityUpdated = { [weak self] updatedActivity in
+            guard let self else {
+                return
+            }
+            
+            updateActivity(updatedActivity)
+        }
+        
+        activityDetailsViewController.onActivityDeleted = { [weak self] deletedActivity in
+            guard let self else {
+                return
+            }
+            
+            deleteActivity(deletedActivity)
+        }
+        
+        let navigationController = UINavigationController(
+            rootViewController: activityDetailsViewController
+        )
+        
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+
+    private func openEditActivity(_ activity: TripActivity) {
+        let editActivityViewController = AddActivityViewController(activity: activity)
+        
+        editActivityViewController.onActivityUpdated = { [weak self] updatedActivity in
+            guard let self else {
+                return
+            }
+            
+            self.updateActivity(updatedActivity)
+        }
+        
+        let navigationController = UINavigationController(
+            rootViewController: editActivityViewController
+        )
+        
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
+    }
+    
+    private func makeActivityDetailsText(_ activity: TripActivity) -> String {
+        var parts: [String] = []
+        
+        if activity.hasTime {
+            parts.append("\(activity.date.tripDateString) · \(activity.time.tripTimeString)")
+        } else {
+            parts.append(activity.date.tripDateString)
+        }
+        
+        if !activity.location.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append("Location: \(activity.location)")
+        }
+        
+        if !activity.bookingNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append("Booking No.: \(activity.bookingNumber)")
+        }
+        
+        if activity.hasRouteDetails {
+            let route = activity.routeDetails
+            parts.append("Route: \(route.from) → \(route.to)")
+            
+            if !route.transportType.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                parts.append("Transport: \(route.transportType)")
+            }
+            
+            parts.append("Departure: \(route.departureDate.tripDateTimeString)")
+            parts.append("Arrival: \(route.arrivalDate.tripDateTimeString)")
+        }
+        
+        if !activity.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            parts.append("Note: \(activity.note)")
+        }
+        
+        return parts.joined(separator: "\n\n")
+    }
+    
+    private func confirmDeleteActivity(_ activity: TripActivity) {
+        let alert = UIAlertController(
+            title: "Delete activity?",
+            message: "This activity will be removed from your trip.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Delete",
+                style: .destructive
+            ) { [weak self] _ in
+                self?.deleteActivity(activity)
+            }
+        )
+        
+        present(alert, animated: true)
+    }
+    
+    private func deleteActivity(_ activity: TripActivity) {
+        let updatedActivities = trip.activities.filter { $0.id != activity.id }
+        
+        let updatedTrip = Trip(
+            id: trip.id,
+            folderID: trip.folderID,
+            basicInfo: trip.basicInfo,
+            transportDetails: trip.transportDetails,
+            routeSteps: trip.routeSteps,
+            hotelDetails: trip.hotelDetails,
+            hasHotelDetails: trip.hasHotelDetails,
+            hasHotelDates: trip.hasHotelDates,
+            checklistItems: trip.checklistItems,
+            hasReturnTicket: trip.hasReturnTicket,
+            returnRouteSteps: trip.returnRouteSteps,
+            activities: updatedActivities
+        )
+        
+        TripStorage.shared.updateTrip(updatedTrip)
+        trip = updatedTrip
+        reloadDetails()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.showToast(
+                "Activity deleted",
+                iconName: "trash.fill",
+                tintColor: .systemRed
+            )
+        }
+    }
+    
+    private func updateActivity(_ updatedActivity: TripActivity) {
+        let updatedActivities = trip.activities.map { activity in
+            if activity.id == updatedActivity.id {
+                return updatedActivity
+            }
+            
+            return activity
+        }
+        .sorted { $0.date < $1.date }
+        
+        let updatedTrip = Trip(
+            id: trip.id,
+            folderID: trip.folderID,
+            basicInfo: trip.basicInfo,
+            transportDetails: trip.transportDetails,
+            routeSteps: trip.routeSteps,
+            hotelDetails: trip.hotelDetails,
+            hasHotelDetails: trip.hasHotelDetails,
+            hasHotelDates: trip.hasHotelDates,
+            checklistItems: trip.checklistItems,
+            hasReturnTicket: trip.hasReturnTicket,
+            returnRouteSteps: trip.returnRouteSteps,
+            activities: updatedActivities
+        )
+        
+        TripStorage.shared.updateTrip(updatedTrip)
+        trip = updatedTrip
+        reloadDetails()
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+            self.showToast(
+                "Activity updated",
+                iconName: "checkmark.circle.fill",
+                tintColor: .systemBlue
+            )
+        }
+    }
+    
     private func addChecklistSection() {
         let sectionStack = makeSectionStack(
             iconName: "checklist",
@@ -799,9 +1053,15 @@ final class TripDetailsViewController: UIViewController {
             card.addArrangedSubview(emptyLabel)
             card.addArrangedSubview(subtitleLabel)
         } else {
-            for item in trip.checklistItems {
-                card.addArrangedSubview(makeChecklistItemRow(item))
-            }
+            checklistTableView.reloadData()
+            
+            checklistTableHeightConstraint?.isActive = false
+            checklistTableHeightConstraint = checklistTableView.heightAnchor.constraint(
+                equalToConstant: CGFloat(trip.checklistItems.count) * 46
+            )
+            checklistTableHeightConstraint?.isActive = true
+            
+            card.addArrangedSubview(checklistTableView)
         }
         
         card.addArrangedSubview(makeSeparator())
@@ -822,65 +1082,13 @@ final class TripDetailsViewController: UIViewController {
     }
     
     @objc private func addChecklistItemTapped() {
-        let alert = UIAlertController(
-            title: "New checklist item",
-            message: nil,
-            preferredStyle: .alert
-        )
+        let inputViewController = ChecklistItemInputViewController()
         
-        alert.addTextField { textField in
-            textField.placeholder = "e.g. Passport"
-            textField.autocapitalizationType = .sentences
+        inputViewController.onItemAdded = { [weak self] title in
+            self?.addChecklistItem(title: title)
         }
         
-        alert.addAction(
-            UIAlertAction(
-                title: "Cancel",
-                style: .cancel
-            )
-        )
-        
-        alert.addAction(
-            UIAlertAction(
-                title: "Add",
-                style: .default
-            ) { [weak self] _ in
-                guard let self else {
-                    return
-                }
-                
-                let title = alert.textFields?.first?.text?
-                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                
-                guard !title.isEmpty else {
-                    return
-                }
-                
-                self.addChecklistItem(title: title)
-            }
-        )
-        
-        present(alert, animated: true)
-    }
-    
-    @objc private func checklistItemTapped(_ sender: ChecklistTapGestureRecognizer) {
-        guard let itemID = sender.itemID else {
-            return
-        }
-        
-        let updatedItems = trip.checklistItems.map { item in
-            if item.id == itemID {
-                return ChecklistItem(
-                    id: item.id,
-                    title: item.title,
-                    isCompleted: !item.isCompleted
-                )
-            }
-            
-            return item
-        }
-        
-        updateChecklistItems(updatedItems)
+        present(inputViewController, animated: true)
     }
     
     private func updateChecklistItems(_ items: [ChecklistItem]) {
@@ -894,6 +1102,7 @@ final class TripDetailsViewController: UIViewController {
         
         let updatedTrip = Trip(
             id: trip.id,
+            folderID: trip.folderID,
             basicInfo: trip.basicInfo,
             transportDetails: trip.transportDetails,
             routeSteps: trip.routeSteps,
@@ -902,7 +1111,8 @@ final class TripDetailsViewController: UIViewController {
             hasHotelDates: trip.hasHotelDates,
             checklistItems: sortedItems,
             hasReturnTicket: trip.hasReturnTicket,
-            returnRouteSteps: trip.returnRouteSteps
+            returnRouteSteps: trip.returnRouteSteps,
+            activities: trip.activities
         )
         
         TripStorage.shared.updateTrip(updatedTrip)
@@ -910,66 +1120,18 @@ final class TripDetailsViewController: UIViewController {
         reloadDetails()
     }
     
-    private func makeChecklistItemRow(_ item: ChecklistItem) -> UIView {
-        let container = UIView()
+    private func deleteChecklistItem(_ item: ChecklistItem) {
+        let updatedItems = trip.checklistItems.filter { $0.id != item.id }
         
-        let iconImageView = UIImageView()
-        iconImageView.image = UIImage(
-            systemName: item.isCompleted ? "checkmark.circle.fill" : "circle"
-        )
-        iconImageView.tintColor = item.isCompleted ? .systemBlue : .secondaryLabel
-        iconImageView.contentMode = .scaleAspectFit
+        updateChecklistItems(updatedItems)
         
-        let titleLabel = UILabel()
-
-        let attributes: [NSAttributedString.Key: Any] = item.isCompleted
-        ? [
-            .strikethroughStyle: NSUnderlineStyle.single.rawValue,
-            .foregroundColor: UIColor.secondaryLabel,
-            .font: UIFont.systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
-        ]
-        : [
-            .foregroundColor: UIColor.label,
-            .font: UIFont.systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
-        ]
-
-        titleLabel.attributedText = NSAttributedString(
-            string: item.title,
-            attributes: attributes
-        )
-
-        titleLabel.numberOfLines = 0
-        
-        container.addSubview(iconImageView)
-        container.addSubview(titleLabel)
-        
-        iconImageView.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            iconImageView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            iconImageView.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
-            iconImageView.widthAnchor.constraint(equalToConstant: 22),
-            iconImageView.heightAnchor.constraint(equalToConstant: 22),
-            
-            titleLabel.topAnchor.constraint(equalTo: container.topAnchor, constant: 6),
-            titleLabel.leadingAnchor.constraint(
-                equalTo: iconImageView.trailingAnchor,
-                constant: 10
-            ),
-            titleLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            titleLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -6)
-        ])
-        
-        container.isUserInteractionEnabled = true
-        let tapGesture = ChecklistTapGestureRecognizer(
-            target: self,
-            action: #selector(checklistItemTapped(_:))
-        )
-        tapGesture.itemID = item.id
-        container.addGestureRecognizer(tapGesture)
-        
-        return container
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            self.showToast(
+                "Checklist item deleted",
+                iconName: "trash.fill",
+                tintColor: .systemRed
+            )
+        }
     }
     
     private func makeAddChecklistItemButton() -> UIView {
@@ -1012,6 +1174,183 @@ final class TripDetailsViewController: UIViewController {
         ])
         
         return container
+    }
+    
+    private func makeAddActivityButton() -> UIView {
+        let container = UIView()
+        let button = UIButton(type: .system)
+        
+        var configuration = UIButton.Configuration.plain()
+        configuration.title = "Add activity"
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        button.configuration = configuration
+        button.contentHorizontalAlignment = .left
+        button.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
+        
+        button.addTarget(
+            self,
+            action: #selector(addActivityTapped),
+            for: .touchUpInside
+        )
+        
+        container.addSubview(button)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            button.topAnchor.constraint(equalTo: container.topAnchor),
+            button.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            button.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            button.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+            button.heightAnchor.constraint(equalToConstant: 44)
+        ])
+        
+        return container
+    }
+    
+    private func makeActivityCard(_ activity: TripActivity) -> UIView {
+        let card = UIStackView()
+        card.axis = .vertical
+        card.spacing = 6
+        card.layoutMargins = UIEdgeInsets(
+            top: 18,
+            left: 18,
+            bottom: 18,
+            right: 18
+        )
+        card.isLayoutMarginsRelativeArrangement = true
+        card.backgroundColor = .cardBackground
+        card.layer.cornerRadius = 18
+        card.layer.shadowColor = UIColor.black.cgColor
+        card.layer.shadowOpacity = 0.06
+        card.layer.shadowOffset = CGSize(width: 0, height: 4)
+        card.layer.shadowRadius = 12
+        
+        let titleLabel = UILabel()
+        titleLabel.text = activity.title
+        titleLabel.font = .systemFont(ofSize: 17, weight: .bold)
+        titleLabel.textColor = .label
+        titleLabel.numberOfLines = 0
+        
+        let dateLabel = UILabel()
+        if activity.hasTime {
+            dateLabel.text = "\(activity.date.tripDateString) · \(activity.time.tripTimeString)"
+        } else {
+            dateLabel.text = activity.date.tripDateString
+        }
+        dateLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        dateLabel.textColor = .secondaryLabel
+        
+        let locationLabel = UILabel()
+        let location = activity.location.trimmingCharacters(in: .whitespacesAndNewlines)
+        locationLabel.text = location.isEmpty ? "No location" : location
+        locationLabel.font = .systemFont(ofSize: 14, weight: .medium)
+        locationLabel.textColor = .secondaryLabel
+        locationLabel.numberOfLines = 0
+        
+        card.addArrangedSubview(titleLabel)
+        card.addArrangedSubview(dateLabel)
+        card.addArrangedSubview(locationLabel)
+        
+        if activity.hasRouteDetails {
+            let routeLabel = UILabel()
+            
+            let from = activity.routeDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
+            let to = activity.routeDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
+            let transport = activity.routeDetails.displayType
+            
+            if from.isEmpty && to.isEmpty {
+                routeLabel.text = transport
+            } else {
+                routeLabel.text = "\(transport) · \(from) → \(to)"
+            }
+            
+            routeLabel.font = .systemFont(ofSize: 14, weight: .semibold)
+            routeLabel.textColor = .label
+            routeLabel.numberOfLines = 0
+            
+            card.addArrangedSubview(routeLabel)
+        }
+        
+        card.isUserInteractionEnabled = true
+        
+        let tapGesture = UITapGestureRecognizer(
+            target: self,
+            action: #selector(activityCardTapped(_:))
+        )
+        
+        card.addGestureRecognizer(tapGesture)
+        card.tag = activity.id.hashValue
+        
+        return card
+    }
+    
+    @objc private func activityCardTapped(_ sender: UITapGestureRecognizer) {
+        guard let view = sender.view else {
+            return
+        }
+        
+        guard let activity = trip.activities.first(where: { $0.id.hashValue == view.tag }) else {
+            return
+        }
+        
+        openActivityDetails(activity)
+    }
+    
+    @objc private func addActivityTapped() {
+        let addActivityViewController = AddActivityViewController()
+        
+        addActivityViewController.onActivityCreated = { [weak self] activity in
+            guard let self else {
+                return
+            }
+            
+            let updatedActivities = (self.trip.activities + [activity])
+                .sorted { $0.date < $1.date }
+            
+            let updatedTrip = Trip(
+                id: self.trip.id,
+                folderID: self.trip.folderID,
+                basicInfo: self.trip.basicInfo,
+                transportDetails: self.trip.transportDetails,
+                routeSteps: self.trip.routeSteps,
+                hotelDetails: self.trip.hotelDetails,
+                hasHotelDetails: self.trip.hasHotelDetails,
+                hasHotelDates: self.trip.hasHotelDates,
+                checklistItems: self.trip.checklistItems,
+                hasReturnTicket: self.trip.hasReturnTicket,
+                returnRouteSteps: self.trip.returnRouteSteps,
+                activities: updatedActivities
+            )
+            
+            TripStorage.shared.updateTrip(updatedTrip)
+            self.trip = updatedTrip
+            self.reloadDetails()
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                self.showToast(
+                    "Activity added",
+                    iconName: "map.fill",
+                    tintColor: .systemBlue
+                )
+            }
+        }
+        
+        let navigationController = UINavigationController(
+            rootViewController: addActivityViewController
+        )
+        
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
     }
     
     private func makeSectionStack(iconName: String, title: String) -> UIStackView {
@@ -1332,6 +1671,225 @@ final class TripDetailsViewController: UIViewController {
     }
 }
 
+extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate {
+    
+    func tableView(
+        _ tableView: UITableView,
+        numberOfRowsInSection section: Int
+    ) -> Int {
+        if tableView == activitiesTableView {
+            return trip.activities.count
+        }
+        
+        if tableView == checklistTableView {
+            return trip.checklistItems.count
+        }
+        
+        return 0
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
+        cellForRowAt indexPath: IndexPath
+    ) -> UITableViewCell {
+        if tableView == activitiesTableView {
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: ActivityTableViewCell.identifier,
+                for: indexPath
+            ) as? ActivityTableViewCell
+            
+            cell?.configure(with: trip.activities[indexPath.row])
+            
+            cell?.backgroundColor = .clear
+            cell?.contentView.backgroundColor = .clear
+            cell?.selectionStyle = .none
+            
+            return cell ?? UITableViewCell()
+        }
+        
+        if tableView == checklistTableView {
+            let cell = tableView.dequeueReusableCell(
+                withIdentifier: "ChecklistCell",
+                for: indexPath
+            )
+            
+            cell.contentConfiguration = nil
+            cell.backgroundColor = .clear
+            cell.contentView.backgroundColor = .clear
+            cell.selectionStyle = .none
+            
+            cell.contentView.subviews.forEach { $0.removeFromSuperview() }
+            
+            let item = trip.checklistItems[indexPath.row]
+            
+            let iconImageView = UIImageView()
+            iconImageView.image = UIImage(
+                systemName: item.isCompleted ? "checkmark.circle.fill" : "circle"
+            )
+            iconImageView.tintColor = item.isCompleted ? .systemBlue : .secondaryLabel
+            iconImageView.contentMode = .scaleAspectFit
+            
+            let titleLabel = UILabel()
+            
+            let attributes: [NSAttributedString.Key: Any]
+            
+            if item.isCompleted {
+                attributes = [
+                    .font: UIFont.systemFont(
+                        ofSize: Layout.valueFontSize,
+                        weight: .semibold
+                    ),
+                    .foregroundColor: UIColor.secondaryLabel,
+                    .strikethroughStyle: NSUnderlineStyle.single.rawValue
+                ]
+            } else {
+                attributes = [
+                    .font: UIFont.systemFont(
+                        ofSize: Layout.valueFontSize,
+                        weight: .semibold
+                    ),
+                    .foregroundColor: UIColor.label
+                ]
+            }
+            
+            titleLabel.attributedText = NSAttributedString(
+                string: item.title,
+                attributes: attributes
+            )
+            titleLabel.numberOfLines = 1
+            
+            cell.contentView.addSubview(iconImageView)
+            cell.contentView.addSubview(titleLabel)
+            
+            iconImageView.translatesAutoresizingMaskIntoConstraints = false
+            titleLabel.translatesAutoresizingMaskIntoConstraints = false
+            
+            NSLayoutConstraint.activate([
+                iconImageView.leadingAnchor.constraint(
+                    equalTo: cell.contentView.leadingAnchor,
+                    constant: 0
+                ),
+                iconImageView.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor),
+                iconImageView.widthAnchor.constraint(equalToConstant: 22),
+                iconImageView.heightAnchor.constraint(equalToConstant: 22),
+                
+                titleLabel.leadingAnchor.constraint(
+                    equalTo: iconImageView.trailingAnchor,
+                    constant: 10
+                ),
+                titleLabel.trailingAnchor.constraint(
+                    equalTo: cell.contentView.trailingAnchor,
+                    constant: -4
+                ),
+                titleLabel.centerYAnchor.constraint(equalTo: cell.contentView.centerYAnchor)
+            ])
+            
+            return cell
+        }
+        
+        return UITableViewCell()
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
+        didSelectRowAt indexPath: IndexPath
+    ) {
+        if tableView == activitiesTableView {
+            let activity = trip.activities[indexPath.row]
+            openActivityDetails(activity)
+            return
+        }
+        
+        if tableView == checklistTableView {
+            let item = trip.checklistItems[indexPath.row]
+            
+            let updatedItems = trip.checklistItems.map { checklistItem in
+                if checklistItem.id == item.id {
+                    return ChecklistItem(
+                        id: checklistItem.id,
+                        title: checklistItem.title,
+                        isCompleted: !checklistItem.isCompleted
+                    )
+                }
+                
+                return checklistItem
+            }
+            
+            updateChecklistItems(updatedItems)
+            return
+        }
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
+        trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath
+    ) -> UISwipeActionsConfiguration? {
+        
+        if tableView == checklistTableView {
+            let item = trip.checklistItems[indexPath.row]
+            
+            let deleteAction = UIContextualAction(
+                style: .destructive,
+                title: nil
+            ) { [weak self] _, _, completion in
+                self?.deleteChecklistItem(item)
+                completion(true)
+            }
+            
+            deleteAction.image = UIImage(systemName: "trash.fill")
+            deleteAction.backgroundColor = .systemRed
+            
+            let configuration = UISwipeActionsConfiguration(
+                actions: [deleteAction]
+            )
+            
+            configuration.performsFirstActionWithFullSwipe = true
+            
+            return configuration
+        }
+        
+        guard tableView == activitiesTableView else {
+            return nil
+        }
+        
+        let activity = trip.activities[indexPath.row]
+        
+        let editAction = UIContextualAction(
+            style: .normal,
+            title: "Edit"
+        ) { [weak self] _, _, completion in
+            self?.openEditActivity(activity)
+            completion(true)
+        }
+        
+        editAction.backgroundColor = .systemBlue
+        editAction.image = UIImage(systemName: "pencil")
+        
+        let deleteAction = UIContextualAction(
+            style: .destructive,
+            title: "Delete"
+        ) { [weak self] _, _, completion in
+            guard let self else {
+                completion(false)
+                return
+            }
+            
+            self.confirmDeleteActivity(activity)
+            completion(true)
+        }
+        
+        deleteAction.image = UIImage(systemName: "trash")
+        
+        let configuration = UISwipeActionsConfiguration(
+            actions: [deleteAction, editAction]
+        )
+        
+        configuration.performsFirstActionWithFullSwipe = true
+        
+        return configuration
+    }
+}
+
 extension TransportSegment {
     
     var displayType: String {
@@ -1360,6 +1918,3 @@ extension TransportSegment {
     }
 }
 
-private final class ChecklistTapGestureRecognizer: UITapGestureRecognizer {
-    var itemID: UUID?
-}

@@ -8,11 +8,13 @@ import Foundation
 struct Trip {
     let id: UUID
     let folderID: UUID?
+    
     let basicInfo: BasicTripInfo
+    
     let transportDetails: TransportDetails
     let routeSteps: [TransportSegment]
-    let hotelDetails: HotelDetails
     
+    let hotelDetails: HotelDetails
     let hasHotelDetails: Bool
     let hasHotelDates: Bool
     
@@ -20,6 +22,8 @@ struct Trip {
     
     let hasReturnTicket: Bool
     let returnRouteSteps: [TransportSegment]
+    
+    let activities: [TripActivity]
     
     init(
         id: UUID,
@@ -32,7 +36,8 @@ struct Trip {
         hasHotelDates: Bool = false,
         checklistItems: [ChecklistItem] = [],
         hasReturnTicket: Bool = false,
-        returnRouteSteps: [TransportSegment] = []
+        returnRouteSteps: [TransportSegment] = [],
+        activities: [TripActivity] = []
     ) {
         self.id = id
         self.folderID = folderID
@@ -62,5 +67,6 @@ struct Trip {
         self.checklistItems = checklistItems
         self.hasReturnTicket = hasReturnTicket
         self.returnRouteSteps = returnRouteSteps
+        self.activities = activities
     }
 }

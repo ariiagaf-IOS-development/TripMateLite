@@ -9,6 +9,12 @@ import UIKit
 
 final class AddTripViewController: UIViewController {
     
+    var onTripDeleted: ((Trip) -> Void)?
+    
+    private var initialFormSnapshot = ""
+    
+    private var didCaptureInitialSnapshot = false
+    
     var onTripCreated: ((Trip) -> Void)?
     var onTripUpdated: ((Trip) -> Void)?
     
@@ -133,6 +139,7 @@ final class AddTripViewController: UIViewController {
         navigationItem.title = "TripMate"
         
         setupCloseButton()
+        setupDeleteButtonIfNeeded()
         setupSaveButton()
         setupScrollView()
         setupStackView()
@@ -144,6 +151,64 @@ final class AddTripViewController: UIViewController {
         updateSaveButtonState()
         setupKeyboardDismissGesture()
         setupKeyboardObservers()
+    }
+    
+    private func setupDeleteButtonIfNeeded() {
+        guard editingTrip != nil else {
+            return
+        }
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "trash"),
+            style: .plain,
+            target: self,
+            action: #selector(deleteTripTapped)
+        )
+        
+        navigationItem.rightBarButtonItem?.tintColor = .systemRed
+    }
+    
+    @objc private func deleteTripTapped() {
+        let alert = UIAlertController(
+            title: "Delete trip?",
+            message: "This trip will be permanently removed.",
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Cancel",
+                style: .cancel
+            )
+        )
+        
+        alert.addAction(
+            UIAlertAction(
+                title: "Delete",
+                style: .destructive
+            ) { [weak self] _ in
+                guard let self,
+                      let editingTrip = self.editingTrip else {
+                    return
+                }
+                
+                self.onTripDeleted?(editingTrip)
+                self.dismiss(animated: true)
+            }
+        )
+        
+        present(alert, animated: true)
+    }
+    
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        
+        guard !didCaptureInitialSnapshot else {
+            return
+        }
+        
+        didCaptureInitialSnapshot = true
+        initialFormSnapshot = makeFormSnapshot()
     }
     
     private func setupInitialFolder() {
@@ -166,85 +231,138 @@ final class AddTripViewController: UIViewController {
         } else {
             dismiss(animated: true)
         }
+        print("INITIAL:", initialFormSnapshot)
+        print("CURRENT:", makeFormSnapshot())
     }
     
     private func hasUnsavedChanges() -> Bool {
-        if didChangeStartDate || didChangeEndDate {
-            return true
-        }
-        
-        let destination = destinationTextField.text?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        
-        if !destination.isEmpty {
-            return true
-        }
+        makeFormSnapshot() != initialFormSnapshot
+    }
+    
+    private func makeFormSnapshot() -> String {
+        let note: String
         
         if isNoteEnabled && noteTextView.textColor != .placeholderText {
-            let note = noteTextView.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            note = noteTextView.text ?? ""
+        } else {
+            note = ""
+        }
+        
+        let routeSnapshots: [String] = routeStepInputs.map { input in
+            let transportType = input.transportTypeTextField.text ?? ""
+            let from = input.fromTextField.text ?? ""
+            let to = input.toTextField.text ?? ""
+            let departureDate = String(input.departureDatePicker.date.timeIntervalSince1970)
+            let arrivalDate = String(input.arrivalDatePicker.date.timeIntervalSince1970)
+            let company = input.companyTextField.text ?? ""
+            let bookingNumber = input.bookingNumberTextField.text ?? ""
             
-            if !note.isEmpty {
-                return true
-            }
-        }
-        
-        let hasRouteChanges = routeStepInputs.contains { input in
-            let transportType = input.transportTypeTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let from = input.fromTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let to = input.toTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let company = input.companyTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let bookingNumber = input.bookingNumberTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let parts: [String] = [
+                transportType,
+                from,
+                to,
+                departureDate,
+                arrivalDate,
+                company,
+                bookingNumber
+            ]
             
-            return !transportType.isEmpty ||
-            !from.isEmpty ||
-            !to.isEmpty ||
-            !company.isEmpty ||
-            !bookingNumber.isEmpty
+            return parts.joined(separator: "|")
         }
         
-        if isRouteDetailsEnabled || hasRouteChanges {
-            return true
-        }
+        let routeSnapshot = routeSnapshots.joined(separator: "||")
         
-        let hasReturnRouteChanges = returnStepInputs.contains { input in
-            let transportType = input.transportTypeTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let from = input.fromTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let to = input.toTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let company = input.companyTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let bookingNumber = input.bookingNumberTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let returnRouteSnapshots: [String] = returnStepInputs.map { input in
+            let transportType = input.transportTypeTextField.text ?? ""
+            let from = input.fromTextField.text ?? ""
+            let to = input.toTextField.text ?? ""
+            let departureDate = snapshotDateTime(input.departureDatePicker.date)
+            let arrivalDate = snapshotDateTime(input.arrivalDatePicker.date)
+            let company = input.companyTextField.text ?? ""
+            let bookingNumber = input.bookingNumberTextField.text ?? ""
             
-            return !transportType.isEmpty ||
-            !from.isEmpty ||
-            !to.isEmpty ||
-            !company.isEmpty ||
-            !bookingNumber.isEmpty
-        }
-        
-        if isReturnRouteEnabled || hasReturnRouteChanges {
-            return true
-        }
-        
-        if isHotelDetailsEnabled {
-            let hotelName = hotelNameTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            let address = addressTextField.text?
-                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let parts: [String] = [
+                transportType,
+                from,
+                to,
+                departureDate,
+                arrivalDate,
+                company,
+                bookingNumber
+            ]
             
-            return !hotelName.isEmpty || !address.isEmpty || isHotelDatesEnabled
+            return parts.joined(separator: "|")
         }
         
-        return false
+        let returnRouteSnapshot = returnRouteSnapshots.joined(separator: "||")
+        
+        let destination = destinationTextField.text ?? ""
+        let startDate = snapshotDate(startDatePicker.date)
+        let endDate = snapshotDate(endDatePicker.date)
+        let noteEnabled = String(isNoteEnabled)
+        
+        let routeDetailsEnabled = String(isRouteDetailsEnabled)
+        let multiStepRouteEnabled = String(isMultiStepRouteEnabled)
+        
+        let returnRouteEnabled = String(isReturnRouteEnabled)
+        let multiStepReturnRouteEnabled = String(isMultiStepReturnRouteEnabled)
+        
+        let hotelDetailsEnabled = String(isHotelDetailsEnabled)
+        let hotelDatesEnabled = String(isHotelDatesEnabled)
+        let hotelName = hotelNameTextField.text ?? ""
+        let address = addressTextField.text ?? ""
+        let checkInDate = snapshotDateTime(checkInDatePicker.date)
+        let checkOutDate = snapshotDateTime(checkOutDatePicker.date)
+        
+        let parts: [String] = [
+            destination,
+            startDate,
+            endDate,
+            noteEnabled,
+            note,
+            routeDetailsEnabled,
+            multiStepRouteEnabled,
+            routeSnapshot,
+            returnRouteEnabled,
+            multiStepReturnRouteEnabled,
+            returnRouteSnapshot,
+            hotelDetailsEnabled,
+            hotelDatesEnabled,
+            hotelName,
+            address,
+            checkInDate,
+            checkOutDate
+        ]
+        
+        return parts.joined(separator: "###")
+    }
+    
+    private func snapshotDate(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day],
+            from: date
+        )
+        
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let day = components.day ?? 0
+        
+        return "\(year)-\(month)-\(day)"
+    }
+
+    private func snapshotDateTime(_ date: Date) -> String {
+        let components = Calendar.current.dateComponents(
+            [.year, .month, .day, .hour, .minute],
+            from: date
+        )
+        
+        let year = components.year ?? 0
+        let month = components.month ?? 0
+        let day = components.day ?? 0
+        let hour = components.hour ?? 0
+        let minute = components.minute ?? 0
+        
+        return "\(year)-\(month)-\(day)-\(hour)-\(minute)"
     }
 
     private func showDiscardChangesAlert() {
@@ -489,9 +607,11 @@ final class AddTripViewController: UIViewController {
         : trip.routeSteps
         
         isMultiStepRouteEnabled = steps.count > 1
-        routeActionButton.configuration?.title = isMultiStepRouteEnabled
+        let routeButtonTitle = isMultiStepRouteEnabled
         ? "Add route step"
         : "Create multi-step route"
+
+        routeActionButton.configuration = makeActionButtonConfiguration(title: routeButtonTitle)
         
         for step in steps {
             let input = RouteStepInput()
@@ -557,9 +677,11 @@ final class AddTripViewController: UIViewController {
             returnStepInputs.append(input)
         }
         
-        returnRouteActionButton.configuration?.title = isMultiStepReturnRouteEnabled
+        let returnButtonTitle = isMultiStepReturnRouteEnabled
         ? "Add return step"
         : "Create multi-step return route"
+
+        returnRouteActionButton.configuration = makeActionButtonConfiguration(title: returnButtonTitle)
         
         rebuildReturnSteps()
         updateReturnRouteSection()
@@ -857,22 +979,8 @@ final class AddTripViewController: UIViewController {
     private func makeRouteDetailsActionButton(title: String) -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = title
-        configuration.image = UIImage(systemName: "plus.circle.fill")
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.baseForegroundColor = .systemBlue
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
-        
-        routeDetailsActionButton.configuration = configuration
+        routeDetailsActionButton.configuration = makeActionButtonConfiguration(title: title)
         routeDetailsActionButton.contentHorizontalAlignment = .left
-        routeDetailsActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         routeDetailsActionButton.removeTarget(nil, action: nil, for: .allEvents)
         routeDetailsActionButton.addTarget(
@@ -1089,23 +1197,14 @@ final class AddTripViewController: UIViewController {
     private func makeRouteActionButton() -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = "Create multi-step route"
-        configuration.image = UIImage(systemName: "plus.circle.fill")
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.baseForegroundColor = .systemBlue
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
+        let title = isMultiStepRouteEnabled
+        ? "Add route step"
+        : "Create multi-step route"
         
-        routeActionButton.configuration = configuration
+        routeActionButton.configuration = makeActionButtonConfiguration(title: title)
         routeActionButton.contentHorizontalAlignment = .left
-        routeActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
+        routeActionButton.removeTarget(nil, action: nil, for: .allEvents)
         routeActionButton.addTarget(
             self,
             action: #selector(routeActionButtonTapped),
@@ -1129,7 +1228,7 @@ final class AddTripViewController: UIViewController {
     @objc private func routeActionButtonTapped() {
         if !isMultiStepRouteEnabled {
             isMultiStepRouteEnabled = true
-            routeActionButton.configuration?.title = "Add route step"
+            routeActionButton.configuration = makeActionButtonConfiguration(title: "Add route step")
             
             rebuildRouteSteps()
             addRouteStep()
@@ -1152,7 +1251,7 @@ final class AddTripViewController: UIViewController {
         
         if routeStepInputs.count == 1 {
             isMultiStepRouteEnabled = false
-            routeActionButton.configuration?.title = "Create multi-step route"
+            routeActionButton.configuration = makeActionButtonConfiguration(title: "Create multi-step route")
         }
         
         rebuildRouteSteps()
@@ -1168,7 +1267,7 @@ final class AddTripViewController: UIViewController {
             view.removeFromSuperview()
         }
         
-        routeActionButton.configuration?.title = "Create multi-step route"
+        routeActionButton.configuration = makeActionButtonConfiguration(title: "Create multi-step route")
         updateRouteSection()
     }
     
@@ -1226,22 +1325,8 @@ final class AddTripViewController: UIViewController {
     private func makeReturnRouteDetailsActionButton(title: String) -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = title
-        configuration.image = UIImage(systemName: "plus.circle.fill")
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.baseForegroundColor = .systemBlue
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
-        
-        returnRouteDetailsActionButton.configuration = configuration
+        returnRouteDetailsActionButton.configuration = makeActionButtonConfiguration(title: title)
         returnRouteDetailsActionButton.contentHorizontalAlignment = .left
-        returnRouteDetailsActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         returnRouteDetailsActionButton.removeTarget(nil, action: nil, for: .allEvents)
         returnRouteDetailsActionButton.addTarget(
@@ -1449,22 +1534,12 @@ final class AddTripViewController: UIViewController {
     private func makeReturnRouteActionButton() -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = "Create multi-step return route"
-        configuration.image = UIImage(systemName: "plus.circle.fill")
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.baseForegroundColor = .systemBlue
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
+        let title = isMultiStepReturnRouteEnabled
+        ? "Add return step"
+        : "Create multi-step return route"
         
-        returnRouteActionButton.configuration = configuration
+        returnRouteActionButton.configuration = makeActionButtonConfiguration(title: title)
         returnRouteActionButton.contentHorizontalAlignment = .left
-        returnRouteActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         returnRouteActionButton.removeTarget(nil, action: nil, for: .allEvents)
         returnRouteActionButton.addTarget(
@@ -1490,7 +1565,7 @@ final class AddTripViewController: UIViewController {
     @objc private func returnRouteActionButtonTapped() {
         if !isMultiStepReturnRouteEnabled {
             isMultiStepReturnRouteEnabled = true
-            returnRouteActionButton.configuration?.title = "Add return step"
+            returnRouteActionButton.configuration = makeActionButtonConfiguration(title: "Add return step")
             
             rebuildReturnSteps()
             addReturnStep()
@@ -1513,7 +1588,7 @@ final class AddTripViewController: UIViewController {
         
         if returnStepInputs.count == 1 {
             isMultiStepReturnRouteEnabled = false
-            returnRouteActionButton.configuration?.title = "Create multi-step return route"
+            returnRouteActionButton.configuration = makeActionButtonConfiguration(title: "Create multi-step return route")
         }
         
         rebuildReturnSteps()
@@ -1529,7 +1604,7 @@ final class AddTripViewController: UIViewController {
             view.removeFromSuperview()
         }
         
-        returnRouteActionButton.configuration?.title = "Create multi-step return route"
+        returnRouteActionButton.configuration = makeActionButtonConfiguration(title: "Create multi-step return route")
         updateReturnRouteSection()
     }
 
@@ -1705,36 +1780,8 @@ final class AddTripViewController: UIViewController {
     private func makeHotelActionButton(title: String) -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = title
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
-        
-        if isHotelDetailsEnabled {
-            let trashConfig = UIImage.SymbolConfiguration(
-                pointSize: 14,
-                weight: .semibold
-            )
-            
-            configuration.image = UIImage(
-                systemName: "trash",
-                withConfiguration: trashConfig
-            )
-            configuration.baseForegroundColor = .systemRed
-        } else {
-            configuration.image = UIImage(systemName: "plus.circle.fill")
-            configuration.baseForegroundColor = .systemBlue
-        }
-        
-        hotelActionButton.configuration = configuration
+        hotelActionButton.configuration = makeActionButtonConfiguration(title: title)
         hotelActionButton.contentHorizontalAlignment = .left
-        hotelActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         hotelActionButton.removeTarget(nil, action: nil, for: .allEvents)
         hotelActionButton.addTarget(
@@ -1760,36 +1807,8 @@ final class AddTripViewController: UIViewController {
     private func makeHotelDatesActionButton(title: String) -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = title
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
-        
-        if isHotelDatesEnabled {
-            let trashConfig = UIImage.SymbolConfiguration(
-                pointSize: 14,
-                weight: .semibold
-            )
-            
-            configuration.image = UIImage(
-                systemName: "trash",
-                withConfiguration: trashConfig
-            )
-            configuration.baseForegroundColor = .systemRed
-        } else {
-            configuration.image = UIImage(systemName: "plus.circle.fill")
-            configuration.baseForegroundColor = .systemBlue
-        }
-        
-        hotelDatesActionButton.configuration = configuration
+        hotelDatesActionButton.configuration = makeActionButtonConfiguration(title: title)
         hotelDatesActionButton.contentHorizontalAlignment = .left
-        hotelDatesActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         hotelDatesActionButton.removeTarget(nil, action: nil, for: .allEvents)
         hotelDatesActionButton.addTarget(
@@ -2126,22 +2145,8 @@ final class AddTripViewController: UIViewController {
     private func makeNoteActionButton(title: String) -> UIView {
         let container = UIView()
         
-        var configuration = UIButton.Configuration.plain()
-        configuration.title = title
-        configuration.image = UIImage(systemName: "plus.circle.fill")
-        configuration.imagePlacement = .leading
-        configuration.imagePadding = 10
-        configuration.baseForegroundColor = .systemBlue
-        configuration.contentInsets = NSDirectionalEdgeInsets(
-            top: 0,
-            leading: 0,
-            bottom: 0,
-            trailing: 0
-        )
-        
-        noteActionButton.configuration = configuration
+        noteActionButton.configuration = makeActionButtonConfiguration(title: title)
         noteActionButton.contentHorizontalAlignment = .left
-        noteActionButton.titleLabel?.font = .systemFont(ofSize: 16, weight: .semibold)
         
         noteActionButton.removeTarget(nil, action: nil, for: .allEvents)
         noteActionButton.addTarget(
@@ -2212,6 +2217,28 @@ final class AddTripViewController: UIViewController {
         return label
     }
     
+    private func makeActionButtonConfiguration(title: String) -> UIButton.Configuration {
+        var configuration = UIButton.Configuration.plain()
+        
+        var attributedTitle = AttributedString(title)
+        attributedTitle.font = .systemFont(ofSize: 16, weight: .medium)
+        attributedTitle.foregroundColor = .systemBlue
+        
+        configuration.attributedTitle = attributedTitle
+        configuration.image = UIImage(systemName: "plus.circle.fill")
+        configuration.imagePlacement = .leading
+        configuration.imagePadding = 10
+        configuration.baseForegroundColor = .systemBlue
+        configuration.contentInsets = NSDirectionalEdgeInsets(
+            top: 0,
+            leading: 0,
+            bottom: 0,
+            trailing: 0
+        )
+        
+        return configuration
+    }
+    
     private func makeSeparator() -> UIView {
         let separator = UIView()
         separator.backgroundColor = UIColor.systemGray5.withAlphaComponent(0.8)
@@ -2224,6 +2251,23 @@ final class AddTripViewController: UIViewController {
         picker.preferredDatePickerStyle = .compact
         picker.tintColor = .systemBlue
         picker.contentHorizontalAlignment = .leading
+        
+        picker.addTarget(
+            self,
+            action: #selector(datePickerValueChanged(_:)),
+            for: .valueChanged
+        )
+    }
+    
+    @objc private func datePickerValueChanged(_ picker: UIDatePicker) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            picker.resignFirstResponder()
+            self.view.endEditing(true)
+            
+            if let presentedViewController = self.presentedViewController {
+                presentedViewController.dismiss(animated: true)
+            }
+        }
     }
     
     private func setupNoteTextView() {
@@ -2476,6 +2520,7 @@ final class AddTripViewController: UIViewController {
             hasReturnTicket: isReturnRouteEnabled,
             returnRouteSteps: returnRouteSteps,
             checklistItems: editingTrip?.checklistItems ?? [],
+            activities: editingTrip?.activities ?? [],
             hasHotelDates: isHotelDatesEnabled,
             hasHotelDetails: isHotelDetailsEnabled,
             hotelName: hotelName,
@@ -2486,17 +2531,15 @@ final class AddTripViewController: UIViewController {
         
         switch result {
         case .success(let trip):
+            initialFormSnapshot = makeFormSnapshot()
+            
             if editingTrip == nil {
                 onTripCreated?(trip)
             } else {
                 onTripUpdated?(trip)
             }
             
-            if presentingViewController != nil {
-                dismiss(animated: true)
-            } else {
-                navigationController?.popViewController(animated: true)
-            }
+            dismiss(animated: true)
             
         case .failure(let message):
             showAlert(message: message)

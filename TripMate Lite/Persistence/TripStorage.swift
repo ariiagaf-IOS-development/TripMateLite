@@ -55,7 +55,8 @@ final class TripStorage {
         saveReturnRouteSteps(trip.returnRouteSteps, for: entity)
         
         saveChecklistItems(trip.checklistItems, for: entity)
-        
+        saveActivities(trip.activities, for: entity)
+
         saveContext()
     }
     
@@ -107,11 +108,113 @@ final class TripStorage {
 
             deleteOldChecklistItems(for: entity)
             saveChecklistItems(trip.checklistItems, for: entity)
-            
+
+            deleteOldActivities(for: entity)
+            saveActivities(trip.activities, for: entity)
+
             saveContext()
         } catch {
             print("Failed to update trip:", error)
         }
+    }
+    
+    private func saveActivities(
+        _ activities: [TripActivity],
+        for tripEntity: TripEntity
+    ) {
+        for (index, activity) in activities.enumerated() {
+            let entity = TripActivityEntity(context: context)
+            
+            entity.id = activity.id
+            entity.title = activity.title
+            entity.date = activity.date
+            entity.hasTime = activity.hasTime
+            entity.time = activity.time
+            entity.location = activity.location
+            entity.note = activity.note
+            entity.bookingNumber = activity.bookingNumber
+            entity.isBooked = activity.isBooked
+            
+            entity.hasRouteDetails = activity.hasRouteDetails
+            entity.routeTransportType = activity.routeDetails.transportType
+            entity.routeFrom = activity.routeDetails.from
+            entity.routeTo = activity.routeDetails.to
+            entity.routeDepartureDate = activity.routeDetails.departureDate
+            entity.routeArrivalDate = activity.routeDetails.arrivalDate
+            entity.routeCompany = activity.routeDetails.company
+            entity.routeBookingNumber = activity.routeDetails.bookingNumber
+            
+            entity.hasReturnRoute = activity.hasReturnRoute
+            entity.returnRouteTransportType = activity.returnRouteDetails.transportType
+            entity.returnRouteFrom = activity.returnRouteDetails.from
+            entity.returnRouteTo = activity.returnRouteDetails.to
+            entity.returnRouteDepartureDate = activity.returnRouteDetails.departureDate
+            entity.returnRouteArrivalDate = activity.returnRouteDetails.arrivalDate
+            entity.returnRouteCompany = activity.returnRouteDetails.company
+            entity.returnRouteBookingNumber = activity.returnRouteDetails.bookingNumber
+            
+            entity.orderIndex = Int16(index)
+            entity.trip = tripEntity
+        }
+    }
+
+    private func deleteOldActivities(for tripEntity: TripEntity) {
+        guard let oldActivities = tripEntity.activities as? Set<TripActivityEntity> else {
+            return
+        }
+        
+        for activity in oldActivities {
+            context.delete(activity)
+        }
+    }
+    
+    private func makeActivities(from entity: TripEntity) -> [TripActivity] {
+        guard let activityEntities = entity.activities as? Set<TripActivityEntity>,
+              !activityEntities.isEmpty else {
+            return []
+        }
+        
+        return activityEntities
+            .sorted { $0.orderIndex < $1.orderIndex }
+            .map { activityEntity in
+                let routeDetails = TransportSegment(
+                    id: UUID(),
+                    transportType: activityEntity.routeTransportType ?? "",
+                    from: activityEntity.routeFrom ?? "",
+                    to: activityEntity.routeTo ?? "",
+                    departureDate: activityEntity.routeDepartureDate ?? Date(),
+                    arrivalDate: activityEntity.routeArrivalDate ?? Date(),
+                    company: activityEntity.routeCompany ?? "",
+                    bookingNumber: activityEntity.routeBookingNumber ?? ""
+                )
+                
+                let returnRouteDetails = TransportSegment(
+                    id: UUID(),
+                    transportType: activityEntity.returnRouteTransportType ?? "",
+                    from: activityEntity.returnRouteFrom ?? "",
+                    to: activityEntity.returnRouteTo ?? "",
+                    departureDate: activityEntity.returnRouteDepartureDate ?? Date(),
+                    arrivalDate: activityEntity.returnRouteArrivalDate ?? Date(),
+                    company: activityEntity.returnRouteCompany ?? "",
+                    bookingNumber: activityEntity.returnRouteBookingNumber ?? ""
+                )
+                
+                return TripActivity(
+                    id: activityEntity.id ?? UUID(),
+                    title: activityEntity.title ?? "",
+                    date: activityEntity.date ?? Date(),
+                    hasTime: activityEntity.hasTime,
+                    time: activityEntity.time ?? Date(),
+                    location: activityEntity.location ?? "",
+                    note: activityEntity.note ?? "",
+                    bookingNumber: activityEntity.bookingNumber ?? "",
+                    isBooked: activityEntity.isBooked,
+                    hasRouteDetails: activityEntity.hasRouteDetails,
+                    routeDetails: routeDetails,
+                    hasReturnRoute: activityEntity.hasReturnRoute,
+                    returnRouteDetails: returnRouteDetails
+                )
+            }
     }
     
     func fetchTrips() -> [Trip] {
@@ -313,6 +416,7 @@ final class TripStorage {
         let routeSteps = makeRouteSteps(from: entity)
         
         let returnRouteSteps = makeReturnRouteSteps(from: entity)
+        let activities = makeActivities(from: entity)
         
         let hotelDetails = HotelDetails(
             hotelName: entity.hotelName ?? "",
@@ -344,7 +448,8 @@ final class TripStorage {
             hasHotelDates: entity.hasHotelDates,
             checklistItems: checklistItems,
             hasReturnTicket: entity.hasReturnTicket,
-            returnRouteSteps: returnRouteSteps
+            returnRouteSteps: returnRouteSteps,
+            activities: activities
         )
     }
     

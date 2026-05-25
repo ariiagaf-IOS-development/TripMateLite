@@ -32,6 +32,7 @@ final class AddTripViewModel {
         hasReturnTicket: Bool,
         returnRouteSteps: [TransportSegment],
         checklistItems: [ChecklistItem],
+        activities: [TripActivity],
         hasHotelDates: Bool,
         hasHotelDetails: Bool,
         hotelName: String,
@@ -99,7 +100,8 @@ final class AddTripViewModel {
             hasHotelDates: hasHotelDates,
             checklistItems: checklistItems,
             hasReturnTicket: hasReturnTicket,
-            returnRouteSteps: returnRouteSteps
+            returnRouteSteps: returnRouteSteps,
+            activities: activities
         )
         
         return .success(trip)

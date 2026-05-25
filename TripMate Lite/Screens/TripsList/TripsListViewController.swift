@@ -964,52 +964,36 @@ extension TripsListViewController: UITableViewDelegate {
     private func showMoveTripOptions(for trip: Trip) {
         let folders = TripStorage.shared.fetchFolders()
         
-        let alert = UIAlertController(
-            title: "Move trip",
-            message: "Choose where to move this trip.",
-            preferredStyle: .actionSheet
+        let folderPickerViewController = FolderPickerViewController(
+            folders: folders,
+            selectedFolderID: trip.folderID
         )
         
-        alert.addAction(
-            UIAlertAction(
-                title: "No Folder",
-                style: .default
-            ) { [weak self] _ in
-                TripStorage.shared.moveTrip(trip, to: nil)
-                self?.loadTrips()
-                self?.showToast(
+        folderPickerViewController.onFolderSelected = { [weak self] folderID in
+            guard let self else {
+                return
+            }
+            
+            TripStorage.shared.moveTrip(trip, to: folderID)
+            self.loadTrips()
+            
+            if let folderID,
+               let folder = folders.first(where: { $0.id == folderID }) {
+                self.showToast(
+                    "Moved to \(folder.name)",
+                    iconName: "folder.fill",
+                    tintColor: folder.colorName.folderUIColor
+                )
+            } else {
+                self.showToast(
                     "Moved to No Folder",
                     iconName: "tray.fill",
                     tintColor: .systemGray
                 )
             }
-        )
-        
-        for folder in folders {
-            alert.addAction(
-                UIAlertAction(
-                    title: folder.name,
-                    style: .default
-                ) { [weak self] _ in
-                    TripStorage.shared.moveTrip(trip, to: folder.id)
-                    self?.loadTrips()
-                    self?.showToast(
-                        "Moved to \(folder.name)",
-                        iconName: "folder.fill",
-                        tintColor: folder.colorName.folderUIColor
-                    )
-                }
-            )
         }
         
-        alert.addAction(
-            UIAlertAction(
-                title: "Cancel",
-                style: .cancel
-            )
-        )
-        
-        present(alert, animated: true)
+        present(folderPickerViewController, animated: true)
     }
     
     private func makeFolderSwipeActions(for folder: TripFolder) -> UISwipeActionsConfiguration {
