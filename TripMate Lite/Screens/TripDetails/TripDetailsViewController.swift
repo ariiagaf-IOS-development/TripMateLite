@@ -40,7 +40,6 @@ final class TripDetailsViewController: UIViewController {
         static let noteFontSize: CGFloat = 16
         
         static let iconSize: CGFloat = 22
-        static let routeLineHeight: CGFloat = 1
     }
     
     init(trip: Trip) {
@@ -59,6 +58,7 @@ final class TripDetailsViewController: UIViewController {
         navigationItem.title = "TripMate"
         
         setupEditButton()
+        setupCloseButton()
         setupHeader()
         setupScrollView()
         setupStackView()
@@ -93,6 +93,19 @@ final class TripDetailsViewController: UIViewController {
         
         navigationController.modalPresentationStyle = .fullScreen
         present(navigationController, animated: true)
+    }
+    
+    private func setupCloseButton() {
+        navigationItem.leftBarButtonItem = UIBarButtonItem(
+            image: UIImage(systemName: "xmark"),
+            style: .plain,
+            target: self,
+            action: #selector(closeButtonTapped)
+        )
+    }
+
+    @objc private func closeButtonTapped() {
+        dismiss(animated: true)
     }
     
     private func reloadDetails() {
@@ -212,6 +225,7 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func addRouteSection() {
+        
         let routeSteps = trip.routeSteps
         
         let hasRouteData = routeSteps.contains { step in
@@ -221,7 +235,7 @@ final class TripDetailsViewController: UIViewController {
             !step.company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ||
             !step.bookingNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         }
-
+        
         if !hasRouteData {
             let sectionStack = makeSectionStack(
                 iconName: "arrow.triangle.branch",
@@ -239,6 +253,7 @@ final class TripDetailsViewController: UIViewController {
             card.addArrangedSubview(emptyLabel)
             sectionStack.addArrangedSubview(card)
             stackView.addArrangedSubview(sectionStack)
+            
             return
         }
         
@@ -251,173 +266,87 @@ final class TripDetailsViewController: UIViewController {
         
         if routeSteps.count > 1 {
             for (index, step) in routeSteps.enumerated() {
-                addRouteStepView(
-                    to: card,
-                    step: step,
-                    stepNumber: index + 1
+                let stepTitle = makeInfoBlock(
+                    title: "Route Step \(index + 1)",
+                    value: step.displayType,
+                    useMutedBackground: true
                 )
+                
+                let routeLineView = makeRouteLineView(
+                    from: step.from,
+                    to: step.to,
+                    iconName: step.iconName
+                )
+                
+                let routeRow = makeTwoColumnRow(
+                    leftTitle: "From",
+                    leftValue: step.from,
+                    rightTitle: "To",
+                    rightValue: step.to
+                )
+                
+                let dateRow = makeTwoColumnRow(
+                    leftTitle: "Departure",
+                    leftValue: step.departureDate.tripDateTimeString,
+                    rightTitle: "Arrival",
+                    rightValue: step.arrivalDate.tripDateTimeString
+                )
+                
+                let detailsRow = makeTwoColumnRow(
+                    leftTitle: "Company",
+                    leftValue: step.company,
+                    rightTitle: "Booking No.",
+                    rightValue: step.bookingNumber
+                )
+                
+                card.addArrangedSubview(stepTitle)
+                card.addArrangedSubview(routeLineView)
+                card.addArrangedSubview(routeRow)
+                card.addArrangedSubview(dateRow)
+                card.addArrangedSubview(detailsRow)
                 
                 if index < routeSteps.count - 1 {
                     card.addArrangedSubview(makeSeparator())
                 }
             }
         } else {
-            let from = trip.transportDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
-            let to = trip.transportDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
+            let routeLineView = makeRouteLineView(
+                from: trip.transportDetails.from,
+                to: trip.transportDetails.to,
+                iconName: trip.transportDetails.iconName
+            )
+
+            card.addArrangedSubview(routeLineView)
+            card.addArrangedSubview(makeSeparator())
             
-            addRouteView(to: card, from: from, to: to)
+            let routeRow = makeTwoColumnRow(
+                leftTitle: "From",
+                leftValue: trip.transportDetails.from,
+                rightTitle: "To",
+                rightValue: trip.transportDetails.to
+            )
             
-            let gridStack = UIStackView()
-            gridStack.axis = .vertical
-            gridStack.spacing = 18
-            
-            let firstRow = makeTwoColumnRow(
+            let dateRow = makeTwoColumnRow(
                 leftTitle: "Departure",
                 leftValue: trip.transportDetails.departureDate.tripDateTimeString,
                 rightTitle: "Arrival",
                 rightValue: trip.transportDetails.arrivalDate.tripDateTimeString
             )
-
-            let secondRow = makeTwoColumnRow(
+            
+            let detailsRow = makeTwoColumnRow(
                 leftTitle: "Company",
                 leftValue: trip.transportDetails.company,
                 rightTitle: "Booking No.",
                 rightValue: trip.transportDetails.bookingNumber
             )
             
-            gridStack.addArrangedSubview(firstRow)
-            gridStack.addArrangedSubview(secondRow)
-            card.addArrangedSubview(gridStack)
+            card.addArrangedSubview(routeRow)
+            card.addArrangedSubview(dateRow)
+            card.addArrangedSubview(detailsRow)
         }
         
         sectionStack.addArrangedSubview(card)
         stackView.addArrangedSubview(sectionStack)
-    }
-    
-    private func addRouteStepView(
-        to card: UIStackView,
-        step: TransportSegment,
-        stepNumber: Int
-    ) {
-        let stepHeaderStack = UIStackView()
-        stepHeaderStack.axis = .horizontal
-        stepHeaderStack.spacing = 8
-        stepHeaderStack.alignment = .center
-        
-        let iconImageView = UIImageView(image: UIImage(systemName: step.iconName))
-        iconImageView.tintColor = .systemBlue
-        iconImageView.contentMode = .scaleAspectFit
-        
-        let titleLabel = UILabel()
-        titleLabel.text = "Route Step \(stepNumber)"
-        titleLabel.font = .systemFont(ofSize: 15, weight: .bold)
-        titleLabel.textColor = .label
-        
-        let typeLabel = UILabel()
-        typeLabel.text = step.displayType
-        typeLabel.font = .systemFont(ofSize: 13, weight: .semibold)
-        typeLabel.textColor = .secondaryLabel
-        
-        stepHeaderStack.addArrangedSubview(iconImageView)
-        
-        let textStack = UIStackView()
-        textStack.axis = .vertical
-        textStack.spacing = 2
-        textStack.addArrangedSubview(titleLabel)
-        textStack.addArrangedSubview(typeLabel)
-        
-        stepHeaderStack.addArrangedSubview(textStack)
-        
-        iconImageView.widthAnchor.constraint(equalToConstant: 22).isActive = true
-        iconImageView.heightAnchor.constraint(equalToConstant: 22).isActive = true
-        
-        card.addArrangedSubview(stepHeaderStack)
-        
-        let from = step.from.trimmingCharacters(in: .whitespacesAndNewlines)
-        let to = step.to.trimmingCharacters(in: .whitespacesAndNewlines)
-        
-        addRouteLineView(
-            to: card,
-            from: from,
-            to: to,
-            iconName: step.iconName
-        )
-        
-        let gridStack = UIStackView()
-        gridStack.axis = .vertical
-        gridStack.spacing = 18
-        
-        let firstRow = makeTwoColumnRow(
-            leftTitle: "Departure",
-            leftValue: step.departureDate.tripDateTimeString,
-            rightTitle: "Arrival",
-            rightValue: step.arrivalDate.tripDateTimeString
-        )
-        
-        let secondRow = makeTwoColumnRow(
-            leftTitle: "Company",
-            leftValue: step.company,
-            rightTitle: "Booking No.",
-            rightValue: step.bookingNumber
-        )
-        
-        gridStack.addArrangedSubview(firstRow)
-        gridStack.addArrangedSubview(secondRow)
-        
-        card.addArrangedSubview(gridStack)
-    }
-    
-    private func addRouteLineView(
-        to card: UIStackView,
-        from: String,
-        to: String,
-        iconName: String
-    ) {
-        let routeStack = UIStackView()
-        routeStack.axis = .horizontal
-        routeStack.alignment = .center
-        routeStack.spacing = 12
-        
-        let fromLabel = makeRoutePlaceLabel(text: from.isEmpty ? "From" : from)
-        let toLabel = makeRoutePlaceLabel(text: to.isEmpty ? "To" : to)
-        
-        let lineContainer = UIView()
-        let lineView = UIView()
-        let routeImageView = UIImageView(image: UIImage(systemName: iconName))
-        
-        lineView.backgroundColor = .systemGray5
-        routeImageView.tintColor = .systemBlue
-        routeImageView.backgroundColor = .cardBackground
-        routeImageView.contentMode = .scaleAspectFit
-        
-        lineContainer.addSubview(lineView)
-        lineContainer.addSubview(routeImageView)
-        
-        lineView.translatesAutoresizingMaskIntoConstraints = false
-        routeImageView.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            lineView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
-            lineView.leadingAnchor.constraint(equalTo: lineContainer.leadingAnchor),
-            lineView.trailingAnchor.constraint(equalTo: lineContainer.trailingAnchor),
-            lineView.heightAnchor.constraint(equalToConstant: Layout.routeLineHeight),
-            
-            routeImageView.centerXAnchor.constraint(equalTo: lineContainer.centerXAnchor),
-            routeImageView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
-            routeImageView.widthAnchor.constraint(equalToConstant: 24),
-            routeImageView.heightAnchor.constraint(equalToConstant: 24),
-            
-            lineContainer.heightAnchor.constraint(equalToConstant: 32)
-        ])
-        
-        routeStack.addArrangedSubview(fromLabel)
-        routeStack.addArrangedSubview(lineContainer)
-        routeStack.addArrangedSubview(toLabel)
-        
-        fromLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
-        toLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
-        
-        card.addArrangedSubview(routeStack)
     }
     
     private func addHotelSection() {
@@ -806,69 +735,6 @@ final class TripDetailsViewController: UIViewController {
         return card
     }
     
-    private func addRouteView(to card: UIStackView, from: String, to: String) {
-        let routeStack = UIStackView()
-        routeStack.axis = .horizontal
-        routeStack.alignment = .center
-        routeStack.spacing = 12
-        
-        let fromLabel = makeRoutePlaceLabel(text: from.isEmpty ? "From" : from)
-        let toLabel = makeRoutePlaceLabel(text: to.isEmpty ? "To" : to)
-        
-        let lineContainer = UIView()
-        let lineView = UIView()
-        let routeImageView = UIImageView(
-            image: UIImage(systemName: trip.transportDetails.iconName)
-        )
-        
-        lineView.backgroundColor = .systemGray5
-        routeImageView.tintColor = .systemBlue
-        routeImageView.backgroundColor = .cardBackground
-        routeImageView.contentMode = .scaleAspectFit
-        
-        lineContainer.addSubview(lineView)
-        lineContainer.addSubview(routeImageView)
-        
-        lineView.translatesAutoresizingMaskIntoConstraints = false
-        routeImageView.translatesAutoresizingMaskIntoConstraints = false
-        
-        NSLayoutConstraint.activate([
-            lineView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
-            lineView.leadingAnchor.constraint(equalTo: lineContainer.leadingAnchor),
-            lineView.trailingAnchor.constraint(equalTo: lineContainer.trailingAnchor),
-            lineView.heightAnchor.constraint(equalToConstant: Layout.routeLineHeight),
-            
-            routeImageView.centerXAnchor.constraint(equalTo: lineContainer.centerXAnchor),
-            routeImageView.centerYAnchor.constraint(equalTo: lineContainer.centerYAnchor),
-            routeImageView.widthAnchor.constraint(equalToConstant: 24),
-            routeImageView.heightAnchor.constraint(equalToConstant: 24),
-            
-            lineContainer.heightAnchor.constraint(equalToConstant: 32)
-        ])
-        
-        routeStack.addArrangedSubview(fromLabel)
-        routeStack.addArrangedSubview(lineContainer)
-        routeStack.addArrangedSubview(toLabel)
-        
-        fromLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
-        toLabel.widthAnchor.constraint(equalTo: routeStack.widthAnchor, multiplier: 0.28).isActive = true
-        
-        card.addArrangedSubview(routeStack)
-        card.addArrangedSubview(makeSeparator())
-    }
-    
-    private func makeRoutePlaceLabel(text: String) -> UILabel {
-        let label = UILabel()
-        label.text = text
-        label.font = .systemFont(ofSize: 18, weight: .bold)
-        label.textColor = .label
-        label.numberOfLines = 2
-        label.textAlignment = .center
-        label.adjustsFontSizeToFitWidth = true
-        label.minimumScaleFactor = 0.75
-        return label
-    }
-    
     private func makeTwoColumnRow(
         leftTitle: String,
         leftValue: String,
@@ -940,6 +806,84 @@ final class TripDetailsViewController: UIViewController {
             stack.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: padding),
             stack.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -padding),
             stack.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -padding)
+        ])
+        
+        return container
+    }
+    
+    private func makeRouteLineView(
+        from: String,
+        to: String,
+        iconName: String
+    ) -> UIView {
+        let container = UIView()
+        
+        let fromLabel = UILabel()
+        fromLabel.text = from.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "From" : from
+        fromLabel.font = .systemFont(ofSize: 18, weight: .bold)
+        fromLabel.textColor = .label
+        fromLabel.numberOfLines = 2
+        fromLabel.textAlignment = .left
+        fromLabel.adjustsFontSizeToFitWidth = true
+        fromLabel.minimumScaleFactor = 0.75
+        
+        let toLabel = UILabel()
+        toLabel.text = to.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "To" : to
+        toLabel.font = .systemFont(ofSize: 18, weight: .bold)
+        toLabel.textColor = .label
+        toLabel.numberOfLines = 2
+        toLabel.textAlignment = .right
+        toLabel.adjustsFontSizeToFitWidth = true
+        toLabel.minimumScaleFactor = 0.75
+        
+        let lineView = UIView()
+        lineView.backgroundColor = .systemGray5
+        
+        let iconBackgroundView = UIView()
+        iconBackgroundView.backgroundColor = .cardBackground
+        iconBackgroundView.layer.cornerRadius = 14
+        
+        let iconImageView = UIImageView(image: UIImage(systemName: iconName))
+        iconImageView.tintColor = .systemBlue
+        iconImageView.contentMode = .scaleAspectFit
+        
+        iconBackgroundView.addSubview(iconImageView)
+        container.addSubview(fromLabel)
+        container.addSubview(lineView)
+        container.addSubview(iconBackgroundView)
+        container.addSubview(toLabel)
+        
+        fromLabel.translatesAutoresizingMaskIntoConstraints = false
+        toLabel.translatesAutoresizingMaskIntoConstraints = false
+        lineView.translatesAutoresizingMaskIntoConstraints = false
+        iconBackgroundView.translatesAutoresizingMaskIntoConstraints = false
+        iconImageView.translatesAutoresizingMaskIntoConstraints = false
+        
+        NSLayoutConstraint.activate([
+            container.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+            
+            fromLabel.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            fromLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            fromLabel.widthAnchor.constraint(equalTo: container.widthAnchor, multiplier: 0.30),
+            
+            toLabel.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+            toLabel.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            toLabel.widthAnchor.constraint(equalTo: container.widthAnchor, multiplier: 0.30),
+            
+            lineView.leadingAnchor.constraint(equalTo: fromLabel.trailingAnchor, constant: 10),
+            lineView.trailingAnchor.constraint(equalTo: toLabel.leadingAnchor, constant: -10),
+            lineView.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            lineView.heightAnchor.constraint(equalToConstant: 1),
+            
+            iconBackgroundView.centerXAnchor.constraint(equalTo: lineView.centerXAnchor),
+            iconBackgroundView.centerYAnchor.constraint(equalTo: lineView.centerYAnchor),
+            iconBackgroundView.widthAnchor.constraint(equalToConstant: 28),
+            iconBackgroundView.heightAnchor.constraint(equalToConstant: 28),
+            
+            iconImageView.centerXAnchor.constraint(equalTo: iconBackgroundView.centerXAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: iconBackgroundView.centerYAnchor),
+            iconImageView.widthAnchor.constraint(equalToConstant: 20),
+            iconImageView.heightAnchor.constraint(equalToConstant: 20)
         ])
         
         return container

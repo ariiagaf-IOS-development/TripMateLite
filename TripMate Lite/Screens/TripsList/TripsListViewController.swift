@@ -78,6 +78,15 @@ final class TripsListViewController: UIViewController {
         
         tableView.contentInset.bottom = bottomInset
         tableView.verticalScrollIndicatorInsets.bottom = bottomInset
+        
+        let visibleHeight = tableView.bounds.height - bottomInset
+
+        emptyStateView.frame = CGRect(
+            x: 0,
+            y: 0,
+            width: tableView.bounds.width,
+            height: visibleHeight
+        )
     }
     
     private func setupSearchController() {
@@ -260,9 +269,15 @@ final class TripsListViewController: UIViewController {
     }
     
     private func setupEmptyStateView() {
-        view.addSubview(emptyStateView)
+        tableView.backgroundView = emptyStateView
         
-        emptyStateView.translatesAutoresizingMaskIntoConstraints = false
+        emptyStateView.backgroundColor = .clear
+        emptyStateView.isHidden = true
+        
+        let contentStackView = UIStackView()
+        contentStackView.axis = .vertical
+        contentStackView.alignment = .center
+        contentStackView.spacing = 14
         
         emptyIconContainerView.backgroundColor = UIColor.systemBlue.withAlphaComponent(0.08)
         emptyIconContainerView.layer.cornerRadius = Layout.emptyIconContainerSize / 2
@@ -272,15 +287,16 @@ final class TripsListViewController: UIViewController {
         emptyIconImageView.tintColor = .systemBlue
         emptyIconImageView.contentMode = .scaleAspectFit
         
-        emptyTitleLabel.text = "No trips yet"
+        emptyTitleLabel.text = "No upcoming trips"
         emptyTitleLabel.font = .systemFont(
             ofSize: Layout.emptyTitleFontSize,
             weight: .semibold
         )
         emptyTitleLabel.textColor = .label
         emptyTitleLabel.textAlignment = .center
+        emptyTitleLabel.numberOfLines = 0
         
-        emptySubtitleLabel.text = "Add your first trip to keep everything in one place."
+        emptySubtitleLabel.text = "Add your next trip and keep the route, stay, and notes in one place."
         emptySubtitleLabel.font = .systemFont(ofSize: Layout.emptySubtitleFontSize)
         emptySubtitleLabel.textColor = .secondaryLabel
         emptySubtitleLabel.textAlignment = .center
@@ -295,7 +311,7 @@ final class TripsListViewController: UIViewController {
         emptyHintIconImageView.tintColor = .systemBlue
         emptyHintIconImageView.contentMode = .scaleAspectFit
         
-        emptyHintLabel.text = "Tap + to start"
+        emptyHintLabel.text = "Tap + to add a trip"
         emptyHintLabel.font = .systemFont(
             ofSize: Layout.emptyHintFontSize,
             weight: .medium
@@ -309,42 +325,46 @@ final class TripsListViewController: UIViewController {
             for: .touchUpInside
         )
         
-        emptyStateView.addSubview(emptyIconContainerView)
+        emptyStateView.addSubview(contentStackView)
         emptyIconContainerView.addSubview(emptyIconImageView)
         
-        emptyStateView.addSubview(emptyTitleLabel)
-        emptyStateView.addSubview(emptySubtitleLabel)
-        emptyStateView.addSubview(emptyHintView)
+        contentStackView.addArrangedSubview(emptyIconContainerView)
+        contentStackView.addArrangedSubview(emptyTitleLabel)
+        contentStackView.addArrangedSubview(emptySubtitleLabel)
+        contentStackView.addArrangedSubview(emptyHintView)
         
         emptyHintView.addSubview(emptyHintIconImageView)
         emptyHintView.addSubview(emptyHintLabel)
         emptyHintView.addSubview(emptyHintButton)
         
+        contentStackView.translatesAutoresizingMaskIntoConstraints = false
         emptyIconContainerView.translatesAutoresizingMaskIntoConstraints = false
         emptyIconImageView.translatesAutoresizingMaskIntoConstraints = false
-        emptyTitleLabel.translatesAutoresizingMaskIntoConstraints = false
-        emptySubtitleLabel.translatesAutoresizingMaskIntoConstraints = false
         emptyHintView.translatesAutoresizingMaskIntoConstraints = false
         emptyHintIconImageView.translatesAutoresizingMaskIntoConstraints = false
         emptyHintLabel.translatesAutoresizingMaskIntoConstraints = false
         emptyHintButton.translatesAutoresizingMaskIntoConstraints = false
         
         NSLayoutConstraint.activate([
-            emptyStateView.leadingAnchor.constraint(
-                equalTo: view.leadingAnchor,
+            contentStackView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
+            NSLayoutConstraint(
+                item: contentStackView,
+                attribute: .centerY,
+                relatedBy: .equal,
+                toItem: emptyStateView,
+                attribute: .centerY,
+                multiplier: 0.78,
+                constant: 0
+            ),
+            contentStackView.leadingAnchor.constraint(
+                greaterThanOrEqualTo: emptyStateView.leadingAnchor,
                 constant: Layout.emptyStateHorizontalPadding
             ),
-            emptyStateView.trailingAnchor.constraint(
-                equalTo: view.trailingAnchor,
+            contentStackView.trailingAnchor.constraint(
+                lessThanOrEqualTo: emptyStateView.trailingAnchor,
                 constant: -Layout.emptyStateHorizontalPadding
             ),
-            emptyStateView.centerYAnchor.constraint(
-                equalTo: tableView.centerYAnchor,
-                constant: -60
-            ),
             
-            emptyIconContainerView.topAnchor.constraint(equalTo: emptyStateView.topAnchor),
-            emptyIconContainerView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
             emptyIconContainerView.widthAnchor.constraint(
                 equalToConstant: Layout.emptyIconContainerSize
             ),
@@ -361,26 +381,9 @@ final class TripsListViewController: UIViewController {
             emptyIconImageView.widthAnchor.constraint(equalToConstant: Layout.emptyIconSize),
             emptyIconImageView.heightAnchor.constraint(equalToConstant: Layout.emptyIconSize),
             
-            emptyTitleLabel.topAnchor.constraint(
-                equalTo: emptyIconContainerView.bottomAnchor,
-                constant: 20
+            emptySubtitleLabel.widthAnchor.constraint(
+                lessThanOrEqualToConstant: 280
             ),
-            emptyTitleLabel.leadingAnchor.constraint(equalTo: emptyStateView.leadingAnchor),
-            emptyTitleLabel.trailingAnchor.constraint(equalTo: emptyStateView.trailingAnchor),
-            
-            emptySubtitleLabel.topAnchor.constraint(
-                equalTo: emptyTitleLabel.bottomAnchor,
-                constant: 8
-            ),
-            emptySubtitleLabel.leadingAnchor.constraint(equalTo: emptyStateView.leadingAnchor),
-            emptySubtitleLabel.trailingAnchor.constraint(equalTo: emptyStateView.trailingAnchor),
-            
-            emptyHintView.topAnchor.constraint(
-                equalTo: emptySubtitleLabel.bottomAnchor,
-                constant: 24
-            ),
-            emptyHintView.centerXAnchor.constraint(equalTo: emptyStateView.centerXAnchor),
-            emptyHintView.bottomAnchor.constraint(equalTo: emptyStateView.bottomAnchor),
             
             emptyHintIconImageView.leadingAnchor.constraint(
                 equalTo: emptyHintView.leadingAnchor,
@@ -439,25 +442,35 @@ final class TripsListViewController: UIViewController {
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let isSearching = !searchText.isEmpty
         
+        tableView.backgroundView = isEmpty ? emptyStateView : nil
+        tableView.isHidden = false
+        tableView.isUserInteractionEnabled = true
+        
         emptyStateView.isHidden = !isEmpty
-        tableView.isHidden = isEmpty
+        emptyStateView.isUserInteractionEnabled = isEmpty
         
         if isSearching {
+            emptyIconImageView.image = UIImage(systemName: "magnifyingglass")
             emptyTitleLabel.text = "No results found"
-            emptySubtitleLabel.text = "Try another destination, route, hotel, or note."
+            emptySubtitleLabel.text = "Try searching by destination, route, hotel, or note."
+            emptyHintIconImageView.image = UIImage(systemName: "xmark.circle.fill")
             emptyHintLabel.text = "Clear search"
             return
         }
         
         switch selectedFilter {
         case .upcoming:
+            emptyIconImageView.image = UIImage(systemName: "airplane.departure")
             emptyTitleLabel.text = "No upcoming trips"
-            emptySubtitleLabel.text = "Add your next trip and keep the route, stay, and notes in one place."
+            emptySubtitleLabel.text = "Add your next trip and keep the route, stay, notes, and packing checklist in one place."
+            emptyHintIconImageView.image = UIImage(systemName: "plus.circle.fill")
             emptyHintLabel.text = "Tap + to add a trip"
             
         case .past:
+            emptyIconImageView.image = UIImage(systemName: "clock.arrow.circlepath")
             emptyTitleLabel.text = "No past trips"
             emptySubtitleLabel.text = "Completed trips will appear here after their end date."
+            emptyHintIconImageView.image = UIImage(systemName: "plus.circle.fill")
             emptyHintLabel.text = "Tap + to add a trip"
         }
     }
@@ -494,10 +507,13 @@ extension TripsListViewController: UITableViewDelegate {
         _ tableView: UITableView,
         didSelectRowAt indexPath: IndexPath
     ) {
+        
         let trip = filteredTrips[indexPath.row]
         let detailsViewController = TripDetailsViewController(trip: trip)
+        let navigationController = UINavigationController(rootViewController: detailsViewController)
         
-        navigationController?.pushViewController(detailsViewController, animated: true)
+        navigationController.modalPresentationStyle = .fullScreen
+        present(navigationController, animated: true)
     }
     
     func tableView(
