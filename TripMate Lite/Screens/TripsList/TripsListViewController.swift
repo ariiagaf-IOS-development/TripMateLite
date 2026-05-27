@@ -32,16 +32,21 @@ final class TripsListViewController: UIViewController {
     }
     
     private var trips: [Trip] = []
+    private var hasAppeared = false
     
     private enum ListItem {
         case folder(TripFolder)
         case trip(Trip)
     }
     
+    private typealias FolderTripCounts = (upcoming: Int, past: Int, total: Int)
+    
     private var filteredTrips: [Trip] = []
     private var folders: [TripFolder] = []
     private var listItems: [ListItem] = []
     private var selectedFilter: TripsFilter = .upcoming
+    private var folderTripCountsByID: [UUID: FolderTripCounts] = [:]
+    private var tripsByFolderIDForCurrentFilter: [UUID: [Trip]] = [:]
     
     private let titleLabel = UILabel()
     private let filterSegmentedControl = UISegmentedControl(items: ["Upcoming", "Past"])
@@ -75,7 +80,12 @@ final class TripsListViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        loadTrips()
+        
+        if hasAppeared {
+            loadTrips()
+        } else {
+            hasAppeared = true
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -183,6 +193,16 @@ final class TripsListViewController: UIViewController {
                 Calendar.current.startOfDay(for: $0.basicInfo.endDate) < today
             }
         }
+        
+        var groupedTrips: [UUID: [Trip]] = [:]
+        for trip in tripsByDate {
+            guard let folderID = trip.folderID else {
+                continue
+            }
+            
+            groupedTrips[folderID, default: []].append(trip)
+        }
+        tripsByFolderIDForCurrentFilter = groupedTrips
         
         let searchText = searchController.searchBar.text?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -485,9 +505,34 @@ final class TripsListViewController: UIViewController {
     }
     
     func loadTrips() {
-        trips = TripStorage.shared.fetchTrips()
+        trips = TripStorage.shared.fetchTripsForList()
         folders = TripStorage.shared.fetchFolders()
+        rebuildFolderTripCounts()
         applyFilter()
+    }
+    
+    private func rebuildFolderTripCounts() {
+        let today = Calendar.current.startOfDay(for: Date())
+        var countsByID: [UUID: FolderTripCounts] = [:]
+        
+        for trip in trips {
+            guard let folderID = trip.folderID else {
+                continue
+            }
+            
+            var counts = countsByID[folderID] ?? (upcoming: 0, past: 0, total: 0)
+            counts.total += 1
+            
+            if Calendar.current.startOfDay(for: trip.basicInfo.endDate) >= today {
+                counts.upcoming += 1
+            } else {
+                counts.past += 1
+            }
+            
+            countsByID[folderID] = counts
+        }
+        
+        folderTripCountsByID = countsByID
     }
     
     func showToast(
@@ -647,61 +692,25 @@ final class TripsListViewController: UIViewController {
     }
     
     private func tripsForCurrentFilter(in folder: TripFolder) -> [Trip] {
-        let today = Calendar.current.startOfDay(for: Date())
-        
-        let folderTrips = trips.filter { trip in
-            trip.folderID == folder.id
-        }
-        
-        switch selectedFilter {
-        case .upcoming:
-            return folderTrips.filter {
-                Calendar.current.startOfDay(for: $0.basicInfo.endDate) >= today
-            }
-            
-        case .past:
-            return folderTrips.filter {
-                Calendar.current.startOfDay(for: $0.basicInfo.endDate) < today
-            }
-        }
+        tripsByFolderIDForCurrentFilter[folder.id] ?? []
     }
     
     private func folderTripCounts(_ folder: TripFolder) -> (upcoming: Int, past: Int) {
-        let today = Calendar.current.startOfDay(for: Date())
+        let counts = folderTripCountsByID[folder.id] ?? (upcoming: 0, past: 0, total: 0)
         
-        let folderTrips = trips.filter { trip in
-            trip.folderID == folder.id
-        }
-        
-        let upcomingCount = folderTrips.filter { trip in
-            Calendar.current.startOfDay(for: trip.basicInfo.endDate) >= today
-        }.count
-        
-        let pastCount = folderTrips.filter { trip in
-            Calendar.current.startOfDay(for: trip.basicInfo.endDate) < today
-        }.count
-        
-        return (upcomingCount, pastCount)
+        return (counts.upcoming, counts.past)
     }
     
     private func shouldShowFolder(_ folder: TripFolder) -> Bool {
-        let today = Calendar.current.startOfDay(for: Date())
+        let counts = folderTripCountsByID[folder.id] ?? (upcoming: 0, past: 0, total: 0)
         
-        let folderTrips = trips.filter { trip in
-            trip.folderID == folder.id
-        }
-        
-        if folderTrips.isEmpty {
+        if counts.total == 0 {
             return true
         }
-        
-        let hasUpcomingTrip = folderTrips.contains { trip in
-            Calendar.current.startOfDay(for: trip.basicInfo.endDate) >= today
-        }
-        
+
         switch selectedFilter {
         case .upcoming:
-            return hasUpcomingTrip
+            return counts.upcoming > 0
             
         case .past:
             return true
@@ -874,7 +883,8 @@ extension TripsListViewController: UITableViewDelegate {
                 return
             }
             
-            let editViewController = AddTripViewController(trip: trip)
+            let fullTrip = TripStorage.shared.fetchTrip(id: trip.id) ?? trip
+            let editViewController = AddTripViewController(trip: fullTrip)
             
             editViewController.onTripUpdated = { [weak self] updatedTrip in
                 guard let self else {

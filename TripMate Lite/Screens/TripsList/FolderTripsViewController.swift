@@ -11,6 +11,7 @@ final class FolderTripsViewController: UIViewController {
     
     private var folder: TripFolder
     private var trips: [Trip] = []
+    private var hasAppeared = false
         
     private let tableView = UITableView()
     
@@ -132,7 +133,12 @@ final class FolderTripsViewController: UIViewController {
     
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        loadTrips()
+        
+        if hasAppeared {
+            loadTrips()
+        } else {
+            hasAppeared = true
+        }
     }
     
     override func viewDidLayoutSubviews() {
@@ -274,7 +280,7 @@ final class FolderTripsViewController: UIViewController {
             let folderColor = updatedFolder.colorName.folderUIColor
             self.folderIconContainerView.backgroundColor = folderColor.withAlphaComponent(0.12)
             self.folderIconImageView.tintColor = folderColor
-            self.setupEmptyStateView()
+            self.updateEmptyStateAppearance()
             self.loadTrips()
             
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
@@ -484,9 +490,7 @@ final class FolderTripsViewController: UIViewController {
     }
     
     private func loadTrips() {
-        trips = TripStorage.shared.fetchTrips()
-            .filter { $0.folderID == folder.id }
-            .sorted { $0.basicInfo.startDate < $1.basicInfo.startDate }
+        trips = TripStorage.shared.fetchTripsForList(in: folder.id)
         
         tableView.reloadData()
 
@@ -497,6 +501,18 @@ final class FolderTripsViewController: UIViewController {
         
         let tripWord = trips.count == 1 ? "trip" : "trips"
         folderCountLabel.text = "\(trips.count) \(tripWord) inside"
+    }
+    
+    private func updateEmptyStateAppearance() {
+        let folderColor = folder.colorName.folderUIColor
+        
+        emptyIconContainerView.backgroundColor = folderColor.withAlphaComponent(0.10)
+        emptyIconImageView.tintColor = folderColor
+        emptyTitleLabel.text = "No trips in \(folder.name) yet"
+        emptySubtitleLabel.text = "Add a trip to \(folder.name) and keep everything organized in one place."
+        emptyHintView.backgroundColor = folderColor.withAlphaComponent(0.10)
+        emptyHintIconImageView.tintColor = folderColor
+        emptyHintLabel.textColor = folderColor
     }
     
     @objc func addTripTapped() {
@@ -620,7 +636,8 @@ extension FolderTripsViewController: UITableViewDelegate {
                 return
             }
             
-            let editViewController = AddTripViewController(trip: trip)
+            let fullTrip = TripStorage.shared.fetchTrip(id: trip.id) ?? trip
+            let editViewController = AddTripViewController(trip: fullTrip)
             
             editViewController.onTripUpdated = { [weak self] updatedTrip in
                 guard let self else {

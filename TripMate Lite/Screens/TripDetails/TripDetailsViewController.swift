@@ -65,6 +65,8 @@ final class TripDetailsViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
+        loadFullTrip()
+        
         view.backgroundColor = .appBackground
         navigationItem.title = "TripMate"
         
@@ -76,6 +78,10 @@ final class TripDetailsViewController: UIViewController {
         setupStackView()
         setupChecklistTableView()
         setupDetailsContent()
+    }
+    
+    private func loadFullTrip() {
+        trip = TripStorage.shared.fetchTrip(id: trip.id) ?? trip
     }
     
     private func setupChecklistTableView() {
@@ -121,7 +127,7 @@ final class TripDetailsViewController: UIViewController {
             }
             
             TripStorage.shared.moveTrip(self.trip, to: folderID)
-            self.trip = TripStorage.shared.fetchTrips().first { $0.id == self.trip.id } ?? self.trip
+            self.loadFullTrip()
             self.reloadDetails()
             
             if let folderID,
@@ -1863,4 +1869,3 @@ extension TransportSegment {
         }
     }
 }
-

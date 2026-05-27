@@ -39,6 +39,15 @@ final class FolderTableViewCell: UITableViewCell {
         setupLayout()
     }
     
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        cardView.layer.shadowPath = UIBezierPath(
+            roundedRect: cardView.bounds,
+            cornerRadius: Layout.cardCornerRadius
+        ).cgPath
+    }
+    
     func configure(
         with folder: TripFolder,
         upcomingCount: Int,

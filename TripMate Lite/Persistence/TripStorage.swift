@@ -235,6 +235,12 @@ final class TripStorage {
         request.sortDescriptors = [
             NSSortDescriptor(key: "startDate", ascending: true)
         ]
+        request.relationshipKeyPathsForPrefetching = [
+            "routeSegments",
+            "returnSegments",
+            "activities",
+            "checklistItems"
+        ]
         
         do {
             let entities = try context.fetch(request)
@@ -242,6 +248,73 @@ final class TripStorage {
         } catch {
             print("Failed to fetch trips:", error)
             return []
+        }
+    }
+    
+    func fetchTripsForList() -> [Trip] {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "startDate", ascending: true)
+        ]
+        request.relationshipKeyPathsForPrefetching = [
+            "routeSegments"
+        ]
+        request.returnsObjectsAsFaults = false
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.map { makeTripSummary(from: $0) }
+        } catch {
+            print("Failed to fetch trip summaries:", error)
+            return []
+        }
+    }
+    
+    func fetchTripsForList(in folderID: UUID) -> [Trip] {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "folderID == %@",
+            folderID as CVarArg
+        )
+        request.sortDescriptors = [
+            NSSortDescriptor(key: "startDate", ascending: true)
+        ]
+        request.relationshipKeyPathsForPrefetching = [
+            "routeSegments"
+        ]
+        request.returnsObjectsAsFaults = false
+        
+        do {
+            let entities = try context.fetch(request)
+            return entities.map { makeTripSummary(from: $0) }
+        } catch {
+            print("Failed to fetch folder trip summaries:", error)
+            return []
+        }
+    }
+    
+    func fetchTrip(id: UUID) -> Trip? {
+        let request: NSFetchRequest<TripEntity> = TripEntity.fetchRequest()
+        
+        request.predicate = NSPredicate(
+            format: "id == %@",
+            id as CVarArg
+        )
+        request.fetchLimit = 1
+        request.relationshipKeyPathsForPrefetching = [
+            "routeSegments",
+            "returnSegments",
+            "activities",
+            "checklistItems"
+        ]
+        
+        do {
+            return try context.fetch(request).first.map { makeTrip(from: $0) }
+        } catch {
+            print("Failed to fetch trip:", error)
+            return nil
         }
     }
     
@@ -468,6 +541,49 @@ final class TripStorage {
             hasReturnTicket: entity.hasReturnTicket,
             returnRouteSteps: returnRouteSteps,
             activities: activities
+        )
+    }
+    
+    private func makeTripSummary(from entity: TripEntity) -> Trip {
+        let basicInfo = BasicTripInfo(
+            destination: entity.destination ?? "",
+            startDate: entity.startDate ?? Date(),
+            endDate: entity.endDate ?? Date(),
+            note: entity.note ?? ""
+        )
+        
+        let transportDetails = TransportDetails(
+            transportType: entity.transportType ?? "",
+            from: entity.from ?? "",
+            to: entity.to ?? "",
+            departurePlace: entity.departurePlace ?? "",
+            arrivalPlace: entity.arrivalPlace ?? "",
+            departureDate: entity.departureDate ?? Date(),
+            arrivalDate: entity.arrivalDate ?? Date(),
+            company: entity.company ?? "",
+            bookingNumber: entity.bookingNumber ?? ""
+        )
+        
+        let hotelDetails = HotelDetails(
+            hotelName: entity.hotelName ?? "",
+            address: entity.address ?? "",
+            checkInDate: entity.checkInDate ?? Date(),
+            checkOutDate: entity.checkOutDate ?? Date()
+        )
+        
+        return Trip(
+            id: entity.id ?? UUID(),
+            folderID: entity.folderID,
+            basicInfo: basicInfo,
+            transportDetails: transportDetails,
+            routeSteps: makeRouteSteps(from: entity),
+            hotelDetails: hotelDetails,
+            hasHotelDetails: entity.hasHotelDetails,
+            hasHotelDates: entity.hasHotelDates,
+            checklistItems: [],
+            hasReturnTicket: entity.hasReturnTicket,
+            returnRouteSteps: [],
+            activities: []
         )
     }
     

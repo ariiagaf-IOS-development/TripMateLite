@@ -63,6 +63,15 @@ final class TripTableViewCell: UITableViewCell {
         fatalError("init(coder:) has not been implemented")
     }
     
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        
+        containerView.layer.shadowPath = UIBezierPath(
+            roundedRect: containerView.bounds,
+            cornerRadius: Layout.cornerRadius
+        ).cgPath
+    }
+    
     func configure(with trip: Trip, folder: TripFolder? = nil) {
         destinationLabel.text = trip.basicInfo.destination
         
@@ -174,9 +183,7 @@ final class TripTableViewCell: UITableViewCell {
     
     private func setupConstraints() {
         containerView.translatesAutoresizingMaskIntoConstraints = false
-        
-        contentView.addSubview(containerView)
-        
+
         let routeRow = makeInfoRow(
             iconContainerView: routeIconContainerView,
             titleLabel: routeTitleLabel,
