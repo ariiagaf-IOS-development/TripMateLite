@@ -11,6 +11,8 @@ struct TransportDetails {
     let transportType: String
     let from: String
     let to: String
+    let departurePlace: String
+    let arrivalPlace: String
     let departureDate: Date
     let arrivalDate: Date
     let company: String

@@ -36,6 +36,8 @@ final class TripStorage {
         entity.transportType = trip.transportDetails.transportType
         entity.from = trip.transportDetails.from
         entity.to = trip.transportDetails.to
+        entity.departurePlace = trip.transportDetails.departurePlace
+        entity.arrivalPlace = trip.transportDetails.arrivalPlace
         entity.departureDate = trip.transportDetails.departureDate
         entity.arrivalDate = trip.transportDetails.arrivalDate
         entity.company = trip.transportDetails.company
@@ -85,6 +87,8 @@ final class TripStorage {
             entity.transportType = trip.transportDetails.transportType
             entity.from = trip.transportDetails.from
             entity.to = trip.transportDetails.to
+            entity.departurePlace = trip.transportDetails.departurePlace
+            entity.arrivalPlace = trip.transportDetails.arrivalPlace
             entity.departureDate = trip.transportDetails.departureDate
             entity.arrivalDate = trip.transportDetails.arrivalDate
             entity.company = trip.transportDetails.company
@@ -139,6 +143,8 @@ final class TripStorage {
             entity.routeTransportType = activity.routeDetails.transportType
             entity.routeFrom = activity.routeDetails.from
             entity.routeTo = activity.routeDetails.to
+            entity.routeDeparturePlace = activity.routeDetails.departurePlace
+            entity.routeArrivalPlace = activity.routeDetails.arrivalPlace
             entity.routeDepartureDate = activity.routeDetails.departureDate
             entity.routeArrivalDate = activity.routeDetails.arrivalDate
             entity.routeCompany = activity.routeDetails.company
@@ -148,6 +154,8 @@ final class TripStorage {
             entity.returnRouteTransportType = activity.returnRouteDetails.transportType
             entity.returnRouteFrom = activity.returnRouteDetails.from
             entity.returnRouteTo = activity.returnRouteDetails.to
+            entity.returnRouteDeparturePlace = activity.returnRouteDetails.departurePlace
+            entity.returnRouteArrivalPlace = activity.returnRouteDetails.arrivalPlace
             entity.returnRouteDepartureDate = activity.returnRouteDetails.departureDate
             entity.returnRouteArrivalDate = activity.returnRouteDetails.arrivalDate
             entity.returnRouteCompany = activity.returnRouteDetails.company
@@ -182,6 +190,8 @@ final class TripStorage {
                     transportType: activityEntity.routeTransportType ?? "",
                     from: activityEntity.routeFrom ?? "",
                     to: activityEntity.routeTo ?? "",
+                    departurePlace: activityEntity.routeDeparturePlace ?? "",
+                    arrivalPlace: activityEntity.routeArrivalPlace ?? "",
                     departureDate: activityEntity.routeDepartureDate ?? Date(),
                     arrivalDate: activityEntity.routeArrivalDate ?? Date(),
                     company: activityEntity.routeCompany ?? "",
@@ -193,6 +203,8 @@ final class TripStorage {
                     transportType: activityEntity.returnRouteTransportType ?? "",
                     from: activityEntity.returnRouteFrom ?? "",
                     to: activityEntity.returnRouteTo ?? "",
+                    departurePlace: activityEntity.returnRouteDeparturePlace ?? "",
+                    arrivalPlace: activityEntity.returnRouteArrivalPlace ?? "",
                     departureDate: activityEntity.returnRouteDepartureDate ?? Date(),
                     arrivalDate: activityEntity.returnRouteArrivalDate ?? Date(),
                     company: activityEntity.returnRouteCompany ?? "",
@@ -320,6 +332,8 @@ final class TripStorage {
             segmentEntity.transportType = step.transportType
             segmentEntity.from = step.from
             segmentEntity.to = step.to
+            segmentEntity.departurePlace = step.departurePlace
+            segmentEntity.arrivalPlace = step.arrivalPlace
             segmentEntity.departureDate = step.departureDate
             segmentEntity.arrivalDate = step.arrivalDate
             segmentEntity.company = step.company
@@ -341,6 +355,8 @@ final class TripStorage {
             segmentEntity.transportType = step.transportType
             segmentEntity.from = step.from
             segmentEntity.to = step.to
+            segmentEntity.departurePlace = step.departurePlace
+            segmentEntity.arrivalPlace = step.arrivalPlace
             segmentEntity.departureDate = step.departureDate
             segmentEntity.arrivalDate = step.arrivalDate
             segmentEntity.company = step.company
@@ -407,6 +423,8 @@ final class TripStorage {
             transportType: entity.transportType ?? "",
             from: entity.from ?? "",
             to: entity.to ?? "",
+            departurePlace: entity.departurePlace ?? "",
+            arrivalPlace: entity.arrivalPlace ?? "",
             departureDate: entity.departureDate ?? Date(),
             arrivalDate: entity.arrivalDate ?? Date(),
             company: entity.company ?? "",
@@ -467,6 +485,8 @@ final class TripStorage {
                     transportType: segmentEntity.transportType ?? "",
                     from: segmentEntity.from ?? "",
                     to: segmentEntity.to ?? "",
+                    departurePlace: segmentEntity.departurePlace ?? "",
+                    arrivalPlace: segmentEntity.arrivalPlace ?? "",
                     departureDate: segmentEntity.departureDate ?? Date(),
                     arrivalDate: segmentEntity.arrivalDate ?? Date(),
                     company: segmentEntity.company ?? "",
@@ -489,6 +509,8 @@ final class TripStorage {
                     transportType: segmentEntity.transportType ?? "",
                     from: segmentEntity.from ?? "",
                     to: segmentEntity.to ?? "",
+                    departurePlace: segmentEntity.departurePlace ?? "",
+                    arrivalPlace: segmentEntity.arrivalPlace ?? "",
                     departureDate: segmentEntity.departureDate ?? Date(),
                     arrivalDate: segmentEntity.arrivalDate ?? Date(),
                     company: segmentEntity.company ?? "",

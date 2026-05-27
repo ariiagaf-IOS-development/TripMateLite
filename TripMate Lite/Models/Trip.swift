@@ -51,6 +51,8 @@ struct Trip {
                     transportType: transportDetails.transportType,
                     from: transportDetails.from,
                     to: transportDetails.to,
+                    departurePlace: transportDetails.departurePlace,
+                    arrivalPlace: transportDetails.arrivalPlace,
                     departureDate: transportDetails.departureDate,
                     arrivalDate: transportDetails.arrivalDate,
                     company: transportDetails.company,

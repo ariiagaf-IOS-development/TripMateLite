@@ -107,17 +107,11 @@ final class TripsListViewController: UIViewController {
         searchTextField.layer.cornerRadius = 14
         searchTextField.clipsToBounds = true
         
-        NSLayoutConstraint.activate([
-            searchTextField.heightAnchor.constraint(equalToConstant: 32)
-        ])
-        
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
         
         definesPresentationContext = true
     }
-    
-    
     
     private func setupFilterSegmentedControl() {
         view.addSubview(filterSegmentedControl)

@@ -60,10 +60,35 @@ final class ActivityDetailsViewController: UIViewController {
         
         setupCloseButton()
         setupEditButton()
+        setupDeleteButton()
         setupHeader()
         setupScrollView()
         setupStackView()
         setupContent()
+    }
+    
+    private func setupDeleteButton() {
+        navigationItem.rightBarButtonItems = [
+            UIBarButtonItem(
+                image: UIImage(systemName: "trash"),
+                style: .plain,
+                target: self,
+                action: #selector(deleteTapped)
+            ),
+            UIBarButtonItem(
+                title: "Edit",
+                style: .plain,
+                target: self,
+                action: #selector(editTapped)
+            )
+        ]
+        
+        navigationItem.rightBarButtonItems?.first?.tintColor = .systemRed
+    }
+
+    @objc private func deleteTapped() {
+        onActivityDeleted?(activity)
+        dismiss(animated: true)
     }
     
     private func setupCloseButton() {
@@ -99,6 +124,24 @@ final class ActivityDetailsViewController: UIViewController {
             self.activity = updatedActivity
             self.onActivityUpdated?(updatedActivity)
             self.reloadDetails()
+        }
+        
+        editViewController.onActivityDeleted = { [weak self] deletedActivity in
+            guard let self else {
+                return
+            }
+            
+            self.onActivityDeleted?(deletedActivity)
+            self.dismiss(animated: true)
+        }
+        
+        editViewController.onActivityDeleted = { [weak self] deletedActivity in
+            guard let self else {
+                return
+            }
+            
+            self.onActivityDeleted?(deletedActivity)
+            self.dismiss(animated: true)
         }
         
         let navigationController = UINavigationController(
@@ -316,6 +359,13 @@ final class ActivityDetailsViewController: UIViewController {
             )
         )
         
+        if let placesRow = makePlacesRowIfNeeded(
+            departurePlace: route.departurePlace,
+            arrivalPlace: route.arrivalPlace
+        ) {
+            card.addArrangedSubview(placesRow)
+        }
+        
         card.addArrangedSubview(
             makeTwoColumnRow(
                 leftTitle: "Departure",
@@ -378,6 +428,13 @@ final class ActivityDetailsViewController: UIViewController {
                 rightValue: route.to
             )
         )
+        
+        if let placesRow = makePlacesRowIfNeeded(
+            departurePlace: route.departurePlace,
+            arrivalPlace: route.arrivalPlace
+        ) {
+            card.addArrangedSubview(placesRow)
+        }
         
         card.addArrangedSubview(
             makeTwoColumnRow(
@@ -506,6 +563,26 @@ final class ActivityDetailsViewController: UIViewController {
         card.applyCardStyle()
         
         return card
+    }
+    
+    private func makePlacesRowIfNeeded(
+        departurePlace: String,
+        arrivalPlace: String
+    ) -> UIView? {
+        let departure = departurePlace.trimmingCharacters(in: .whitespacesAndNewlines)
+        let arrival = arrivalPlace.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !departure.isEmpty || !arrival.isEmpty else {
+            return nil
+        }
+        
+        return makeTwoColumnRow(
+            leftTitle: "From place",
+            leftValue: departure.isEmpty ? "Not specified" : departure,
+            rightTitle: "To place",
+            rightValue: arrival.isEmpty ? "Not specified" : arrival,
+            useMutedBackground: true
+        )
     }
     
     private func makeTwoColumnRow(

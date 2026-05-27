@@ -12,6 +12,12 @@ final class AddActivityViewController: UIViewController {
     private var isReturnRouteEnabled = false
     private let returnRouteActionButton = UIButton(type: .system)
     private let returnRouteSectionStackView = UIStackView()
+    
+    private let departurePlaceTextField = UITextField()
+    private let arrivalPlaceTextField = UITextField()
+
+    private let returnDeparturePlaceTextField = UITextField()
+    private let returnArrivalPlaceTextField = UITextField()
 
     private let returnTransportTypeTextField = UITextField()
     private let returnFromTextField = UITextField()
@@ -191,6 +197,8 @@ final class AddActivityViewController: UIViewController {
         let transportType = transportTypeTextField.text ?? ""
         let from = fromTextField.text ?? ""
         let to = toTextField.text ?? ""
+        let departurePlace = departurePlaceTextField.text ?? ""
+        let arrivalPlace = arrivalPlaceTextField.text ?? ""
         let departureDate = isRouteDetailsEnabled
         ? snapshotDateTime(departureDatePicker.date)
         : ""
@@ -205,6 +213,8 @@ final class AddActivityViewController: UIViewController {
         let returnTransportType = returnTransportTypeTextField.text ?? ""
         let returnFrom = returnFromTextField.text ?? ""
         let returnTo = returnToTextField.text ?? ""
+        let returnDeparturePlace = returnDeparturePlaceTextField.text ?? ""
+        let returnArrivalPlace = returnArrivalPlaceTextField.text ?? ""
 
         let returnDepartureDate = isReturnRouteEnabled
         ? snapshotDateTime(returnDepartureDatePicker.date)
@@ -229,6 +239,8 @@ final class AddActivityViewController: UIViewController {
             transportType,
             from,
             to,
+            departurePlace,
+            arrivalPlace,
             departureDate,
             arrivalDate,
             company,
@@ -237,6 +249,8 @@ final class AddActivityViewController: UIViewController {
             returnTransportType,
             returnFrom,
             returnTo,
+            returnDeparturePlace,
+            returnArrivalPlace,
             returnDepartureDate,
             returnArrivalDate,
             returnCompany,
@@ -496,6 +510,22 @@ final class AddActivityViewController: UIViewController {
             )
             
             card.addArrangedSubview(makeSeparator())
+            card.addArrangedSubview(
+                makeTwoColumnRow(
+                    leftView: makeTextFieldBlock(
+                        title: "From station / airport",
+                        textField: returnDeparturePlaceTextField,
+                        placeholder: "Firenze SMN / FLR"
+                    ),
+                    rightView: makeTextFieldBlock(
+                        title: "To station / airport",
+                        textField: returnArrivalPlaceTextField,
+                        placeholder: "Roma Termini / FCO"
+                    )
+                )
+            )
+            
+            card.addArrangedSubview(makeSeparator())
             card.addArrangedSubview(makeDateBlock(title: "Departure", picker: returnDepartureDatePicker))
             card.addArrangedSubview(makeSeparator())
             card.addArrangedSubview(makeDateBlock(title: "Arrival", picker: returnArrivalDatePicker))
@@ -540,6 +570,8 @@ final class AddActivityViewController: UIViewController {
         
         returnFromTextField.text = toTextField.text
         returnToTextField.text = fromTextField.text
+        returnDeparturePlaceTextField.text = arrivalPlaceTextField.text
+        returnArrivalPlaceTextField.text = departurePlaceTextField.text
         
         updateReturnRouteSection()
     }
@@ -550,6 +582,8 @@ final class AddActivityViewController: UIViewController {
         returnTransportTypeTextField.text = ""
         returnFromTextField.text = ""
         returnToTextField.text = ""
+        returnDeparturePlaceTextField.text = ""
+        returnArrivalPlaceTextField.text = ""
         returnCompanyTextField.text = ""
         returnBookingNumberTextField.text = ""
         
@@ -580,6 +614,8 @@ final class AddActivityViewController: UIViewController {
         transportTypeTextField.text = activity.routeDetails.transportType
         fromTextField.text = activity.routeDetails.from
         toTextField.text = activity.routeDetails.to
+        departurePlaceTextField.text = activity.routeDetails.departurePlace
+        arrivalPlaceTextField.text = activity.routeDetails.arrivalPlace
         departureDatePicker.date = activity.routeDetails.departureDate
         arrivalDatePicker.date = activity.routeDetails.arrivalDate
         companyTextField.text = activity.routeDetails.company
@@ -589,6 +625,8 @@ final class AddActivityViewController: UIViewController {
         returnTransportTypeTextField.text = activity.returnRouteDetails.transportType
         returnFromTextField.text = activity.returnRouteDetails.from
         returnToTextField.text = activity.returnRouteDetails.to
+        returnDeparturePlaceTextField.text = activity.returnRouteDetails.departurePlace
+        returnArrivalPlaceTextField.text = activity.returnRouteDetails.arrivalPlace
         returnDepartureDatePicker.date = activity.returnRouteDetails.departureDate
         returnArrivalDatePicker.date = activity.returnRouteDetails.arrivalDate
         returnCompanyTextField.text = activity.returnRouteDetails.company
@@ -827,6 +865,22 @@ final class AddActivityViewController: UIViewController {
             )
             
             card.addArrangedSubview(makeSeparator())
+            card.addArrangedSubview(
+                makeTwoColumnRow(
+                    leftView: makeTextFieldBlock(
+                        title: "From station / airport",
+                        textField: departurePlaceTextField,
+                        placeholder: "Roma Termini / FCO"
+                    ),
+                    rightView: makeTextFieldBlock(
+                        title: "To station / airport",
+                        textField: arrivalPlaceTextField,
+                        placeholder: "Firenze SMN / FLR"
+                    )
+                )
+            )
+            
+            card.addArrangedSubview(makeSeparator())
             card.addArrangedSubview(makeDateBlock(title: "Departure", picker: departureDatePicker))
             card.addArrangedSubview(makeSeparator())
             card.addArrangedSubview(makeDateBlock(title: "Arrival", picker: arrivalDatePicker))
@@ -878,6 +932,8 @@ final class AddActivityViewController: UIViewController {
         transportTypeTextField.text = ""
         fromTextField.text = ""
         toTextField.text = ""
+        departurePlaceTextField.text = ""
+        arrivalPlaceTextField.text = ""
         companyTextField.text = ""
         routeBookingNumberTextField.text = ""
         
@@ -1043,6 +1099,8 @@ final class AddActivityViewController: UIViewController {
             transportType: transportTypeTextField.text ?? "",
             from: fromTextField.text ?? "",
             to: toTextField.text ?? "",
+            departurePlace: departurePlaceTextField.text ?? "",
+            arrivalPlace: arrivalPlaceTextField.text ?? "",
             departureDate: departureDatePicker.date,
             arrivalDate: arrivalDatePicker.date,
             company: companyTextField.text ?? "",
@@ -1054,6 +1112,8 @@ final class AddActivityViewController: UIViewController {
             transportType: returnTransportTypeTextField.text ?? "",
             from: returnFromTextField.text ?? "",
             to: returnToTextField.text ?? "",
+            departurePlace: returnDeparturePlaceTextField.text ?? "",
+            arrivalPlace: returnArrivalPlaceTextField.text ?? "",
             departureDate: returnDepartureDatePicker.date,
             arrivalDate: returnArrivalDatePicker.date,
             company: returnCompanyTextField.text ?? "",
@@ -1285,6 +1345,23 @@ final class AddActivityViewController: UIViewController {
         picker.preferredDatePickerStyle = .compact
         picker.tintColor = .systemBlue
         picker.contentHorizontalAlignment = .leading
+        
+        picker.addTarget(
+            self,
+            action: #selector(datePickerValueChanged(_:)),
+            for: .valueChanged
+        )
+    }
+    
+    @objc private func datePickerValueChanged(_ picker: UIDatePicker) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            picker.resignFirstResponder()
+            self.view.endEditing(true)
+            
+            if let presentedViewController = self.presentedViewController {
+                presentedViewController.dismiss(animated: true)
+            }
+        }
     }
     
     private func showAlert(message: String) {

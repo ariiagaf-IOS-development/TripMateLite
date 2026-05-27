@@ -26,6 +26,8 @@ final class AddTripViewController: UIViewController {
         let transportTypeTextField = UITextField()
         let fromTextField = UITextField()
         let toTextField = UITextField()
+        let departurePlaceTextField = UITextField()
+        let arrivalPlaceTextField = UITextField()
         let departureDatePicker = UIDatePicker()
         let arrivalDatePicker = UIDatePicker()
         let companyTextField = UITextField()
@@ -256,11 +258,15 @@ final class AddTripViewController: UIViewController {
             let arrivalDate = String(input.arrivalDatePicker.date.timeIntervalSince1970)
             let company = input.companyTextField.text ?? ""
             let bookingNumber = input.bookingNumberTextField.text ?? ""
+            let departurePlace = input.departurePlaceTextField.text ?? ""
+            let arrivalPlace = input.arrivalPlaceTextField.text ?? ""
             
             let parts: [String] = [
                 transportType,
                 from,
                 to,
+                departurePlace,
+                arrivalPlace,
                 departureDate,
                 arrivalDate,
                 company,
@@ -280,11 +286,15 @@ final class AddTripViewController: UIViewController {
             let arrivalDate = snapshotDateTime(input.arrivalDatePicker.date)
             let company = input.companyTextField.text ?? ""
             let bookingNumber = input.bookingNumberTextField.text ?? ""
+            let departurePlace = input.departurePlaceTextField.text ?? ""
+            let arrivalPlace = input.arrivalPlaceTextField.text ?? ""
             
             let parts: [String] = [
                 transportType,
                 from,
                 to,
+                departurePlace,
+                arrivalPlace,
                 departureDate,
                 arrivalDate,
                 company,
@@ -598,6 +608,8 @@ final class AddTripViewController: UIViewController {
                 transportType: trip.transportDetails.transportType,
                 from: trip.transportDetails.from,
                 to: trip.transportDetails.to,
+                departurePlace: trip.transportDetails.departurePlace,
+                arrivalPlace: trip.transportDetails.arrivalPlace,
                 departureDate: trip.transportDetails.departureDate,
                 arrivalDate: trip.transportDetails.arrivalDate,
                 company: trip.transportDetails.company,
@@ -622,6 +634,8 @@ final class AddTripViewController: UIViewController {
             input.transportTypeTextField.text = step.transportType
             input.fromTextField.text = step.from
             input.toTextField.text = step.to
+            input.departurePlaceTextField.text = step.departurePlace
+            input.arrivalPlaceTextField.text = step.arrivalPlace
             input.departureDatePicker.date = step.departureDate
             input.arrivalDatePicker.date = step.arrivalDate
             input.companyTextField.text = step.company
@@ -669,6 +683,8 @@ final class AddTripViewController: UIViewController {
             input.transportTypeTextField.text = step.transportType
             input.fromTextField.text = step.from
             input.toTextField.text = step.to
+            input.departurePlaceTextField.text = step.departurePlace
+            input.arrivalPlaceTextField.text = step.arrivalPlace
             input.departureDatePicker.date = step.departureDate
             input.arrivalDatePicker.date = step.arrivalDate
             input.companyTextField.text = step.company
@@ -1092,6 +1108,23 @@ final class AddTripViewController: UIViewController {
         )
         
         card.addArrangedSubview(makeSeparator())
+
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "From station / airport",
+                    textField: input.departurePlaceTextField,
+                    placeholder: "BEG / Roma Termini"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "To station / airport",
+                    textField: input.arrivalPlaceTextField,
+                    placeholder: "FCO / Milano Centrale"
+                )
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
         
         card.addArrangedSubview(
             makeDateBlock(
@@ -1424,6 +1457,23 @@ final class AddTripViewController: UIViewController {
                     title: "To",
                     textField: input.toTextField,
                     placeholder: "Belgrade"
+                )
+            )
+        )
+        
+        card.addArrangedSubview(makeSeparator())
+
+        card.addArrangedSubview(
+            makeTwoColumnRow(
+                leftView: makeTextFieldBlock(
+                    title: "From station / airport",
+                    textField: input.departurePlaceTextField,
+                    placeholder: "FCO / Roma Termini"
+                ),
+                rightView: makeTextFieldBlock(
+                    title: "To station / airport",
+                    textField: input.arrivalPlaceTextField,
+                    placeholder: "BEG / Belgrade Bus Station"
                 )
             )
         )
@@ -2322,6 +2372,8 @@ final class AddTripViewController: UIViewController {
                 transportType: input.transportTypeTextField.text ?? "",
                 from: input.fromTextField.text ?? "",
                 to: input.toTextField.text ?? "",
+                departurePlace: input.departurePlaceTextField.text ?? "",
+                arrivalPlace: input.arrivalPlaceTextField.text ?? "",
                 departureDate: input.departureDatePicker.date,
                 arrivalDate: input.arrivalDatePicker.date,
                 company: input.companyTextField.text ?? "",
@@ -2335,6 +2387,8 @@ final class AddTripViewController: UIViewController {
         let transportType = firstRouteStep?.transportType ?? ""
         let from = firstRouteStep?.from ?? ""
         let to = firstRouteStep?.to ?? ""
+        let departurePlace = firstRouteStep?.departurePlace ?? ""
+        let arrivalPlace = firstRouteStep?.arrivalPlace ?? ""
         let departureDate = firstRouteStep?.departureDate ?? Date()
         let arrivalDate = firstRouteStep?.arrivalDate ?? Date()
         let company = firstRouteStep?.company ?? ""
@@ -2352,6 +2406,8 @@ final class AddTripViewController: UIViewController {
                 transportType: input.transportTypeTextField.text ?? "",
                 from: input.fromTextField.text ?? "",
                 to: input.toTextField.text ?? "",
+                departurePlace: input.departurePlaceTextField.text ?? "",
+                arrivalPlace: input.arrivalPlaceTextField.text ?? "",
                 departureDate: input.departureDatePicker.date,
                 arrivalDate: input.arrivalDatePicker.date,
                 company: input.companyTextField.text ?? "",
@@ -2369,6 +2425,8 @@ final class AddTripViewController: UIViewController {
             transportType: transportType,
             from: from,
             to: to,
+            departurePlace: departurePlace,
+            arrivalPlace: arrivalPlace,
             departureDate: departureDate,
             arrivalDate: arrivalDate,
             company: company,
@@ -2392,6 +2450,8 @@ final class AddTripViewController: UIViewController {
         transportType: String,
         from: String,
         to: String,
+        departurePlace: String,
+        arrivalPlace: String,
         departureDate: Date,
         arrivalDate: Date,
         company: String,
@@ -2425,6 +2485,8 @@ final class AddTripViewController: UIViewController {
                     transportType: transportType,
                     from: from,
                     to: to,
+                    departurePlace: departurePlace,
+                    arrivalPlace: arrivalPlace,
                     departureDate: departureDate,
                     arrivalDate: arrivalDate,
                     company: company,
@@ -2457,6 +2519,8 @@ final class AddTripViewController: UIViewController {
                         transportType: transportType,
                         from: from,
                         to: to,
+                        departurePlace: departurePlace,
+                        arrivalPlace: arrivalPlace,
                         departureDate: departureDate,
                         arrivalDate: arrivalDate,
                         company: company,
@@ -2491,6 +2555,8 @@ final class AddTripViewController: UIViewController {
         transportType: String,
         from: String,
         to: String,
+        departurePlace: String,
+        arrivalPlace: String,
         departureDate: Date,
         arrivalDate: Date,
         company: String,
@@ -2512,6 +2578,8 @@ final class AddTripViewController: UIViewController {
             transportType: transportType,
             from: from,
             to: to,
+            departurePlace: departurePlace,
+            arrivalPlace: arrivalPlace,
             departureDate: departureDate,
             arrivalDate: arrivalDate,
             company: company,

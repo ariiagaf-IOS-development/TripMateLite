@@ -8,9 +8,11 @@
     </entity>
     <entity name="ReturnSegmentEntity" representedClassName="ReturnSegmentEntity" syncable="YES" codeGenerationType="class">
         <attribute name="arrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="arrivalPlace" optional="YES" attributeType="String"/>
         <attribute name="bookingNumber" optional="YES" attributeType="String"/>
         <attribute name="company" optional="YES" attributeType="String"/>
         <attribute name="departureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departurePlace" optional="YES" attributeType="String"/>
         <attribute name="from" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
@@ -20,9 +22,11 @@
     </entity>
     <entity name="TransportSegmentEntity" representedClassName="TransportSegmentEntity" syncable="YES" codeGenerationType="class">
         <attribute name="arrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="arrivalPlace" optional="YES" attributeType="String"/>
         <attribute name="bookingNumber" optional="YES" attributeType="String"/>
         <attribute name="company" optional="YES" attributeType="String"/>
         <attribute name="departureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departurePlace" optional="YES" attributeType="String"/>
         <attribute name="from" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
@@ -42,16 +46,20 @@
         <attribute name="note" optional="YES" attributeType="String"/>
         <attribute name="orderIndex" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="returnRouteArrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="returnRouteArrivalPlace" optional="YES" attributeType="String"/>
         <attribute name="returnRouteBookingNumber" optional="YES" attributeType="String"/>
         <attribute name="returnRouteCompany" optional="YES" attributeType="String"/>
         <attribute name="returnRouteDepartureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="returnRouteDeparturePlace" optional="YES" attributeType="String"/>
         <attribute name="returnRouteFrom" optional="YES" attributeType="String"/>
         <attribute name="returnRouteTo" optional="YES" attributeType="String"/>
         <attribute name="returnRouteTransportType" optional="YES" attributeType="String"/>
         <attribute name="routeArrivalDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="routeArrivalPlace" optional="YES" attributeType="String"/>
         <attribute name="routeBookingNumber" optional="YES" attributeType="String"/>
         <attribute name="routeCompany" optional="YES" attributeType="String"/>
         <attribute name="routeDepartureDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="routeDeparturePlace" optional="YES" attributeType="String"/>
         <attribute name="routeFrom" optional="YES" attributeType="String"/>
         <attribute name="routeTo" optional="YES" attributeType="String"/>
         <attribute name="routeTransportType" optional="YES" attributeType="String"/>
@@ -62,11 +70,13 @@
     <entity name="TripEntity" representedClassName="TripEntity" syncable="YES" codeGenerationType="class">
         <attribute name="address" attributeType="String"/>
         <attribute name="arrivalDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="arrivalPlace" optional="YES" attributeType="String"/>
         <attribute name="bookingNumber" attributeType="String"/>
         <attribute name="checkInDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="checkOutDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="company" attributeType="String"/>
         <attribute name="departureDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="departurePlace" optional="YES" attributeType="String"/>
         <attribute name="destination" attributeType="String"/>
         <attribute name="endDate" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="folderID" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>

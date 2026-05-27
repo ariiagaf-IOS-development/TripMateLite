@@ -10,7 +10,7 @@ import UIKit
 final class TripDetailsViewController: UIViewController {
     
     private var trip: Trip
-    
+        
     private let activitiesListStackView = UIStackView()
     
     private let titleLabel = UILabel()
@@ -77,6 +77,7 @@ final class TripDetailsViewController: UIViewController {
         setupFolderBadge()
         setupScrollView()
         setupStackView()
+        setupActivitiesTableView()
         setupChecklistTableView()
         setupDetailsContent()
     }
@@ -88,6 +89,9 @@ final class TripDetailsViewController: UIViewController {
         activitiesTableView.showsVerticalScrollIndicator = false
         activitiesTableView.isScrollEnabled = false
         
+        activitiesTableView.rowHeight = UITableView.automaticDimension
+        activitiesTableView.estimatedRowHeight = 88
+        
         activitiesTableView.sectionHeaderTopPadding = 0
         activitiesTableView.contentInset = .zero
         activitiesTableView.layoutMargins = .zero
@@ -98,6 +102,14 @@ final class TripDetailsViewController: UIViewController {
         activitiesTableView.register(
             ActivityTableViewCell.self,
             forCellReuseIdentifier: ActivityTableViewCell.identifier
+        )
+        
+        activitiesTableView.clipsToBounds = false
+        activitiesTableView.contentInset = UIEdgeInsets(
+            top: 0,
+            left: 0,
+            bottom: 18,
+            right: 0
         )
     }
     
@@ -530,6 +542,11 @@ final class TripDetailsViewController: UIViewController {
                     rightValue: step.to
                 )
                 
+                let placesRow = makePlacesRowIfNeeded(
+                    departurePlace: step.departurePlace,
+                    arrivalPlace: step.arrivalPlace
+                )
+                
                 let dateRow = makeTwoColumnRow(
                     leftTitle: "Departure",
                     leftValue: step.departureDate.tripDateTimeString,
@@ -547,6 +564,11 @@ final class TripDetailsViewController: UIViewController {
                 card.addArrangedSubview(stepTitle)
                 card.addArrangedSubview(routeLineView)
                 card.addArrangedSubview(routeRow)
+
+                if let placesRow {
+                    card.addArrangedSubview(placesRow)
+                }
+
                 card.addArrangedSubview(dateRow)
                 card.addArrangedSubview(detailsRow)
                 
@@ -571,6 +593,11 @@ final class TripDetailsViewController: UIViewController {
                 rightValue: trip.transportDetails.to
             )
             
+            let placesRow = makePlacesRowIfNeeded(
+                departurePlace: trip.transportDetails.departurePlace,
+                arrivalPlace: trip.transportDetails.arrivalPlace
+            )
+            
             let dateRow = makeTwoColumnRow(
                 leftTitle: "Departure",
                 leftValue: trip.transportDetails.departureDate.tripDateTimeString,
@@ -586,6 +613,11 @@ final class TripDetailsViewController: UIViewController {
             )
             
             card.addArrangedSubview(routeRow)
+
+            if let placesRow {
+                card.addArrangedSubview(placesRow)
+            }
+
             card.addArrangedSubview(dateRow)
             card.addArrangedSubview(detailsRow)
         }
@@ -629,6 +661,11 @@ final class TripDetailsViewController: UIViewController {
                     rightValue: step.to
                 )
                 
+                let placesRow = makePlacesRowIfNeeded(
+                    departurePlace: step.departurePlace,
+                    arrivalPlace: step.arrivalPlace
+                )
+                
                 let dateRow = makeTwoColumnRow(
                     leftTitle: "Departure",
                     leftValue: step.departureDate.tripDateTimeString,
@@ -646,6 +683,11 @@ final class TripDetailsViewController: UIViewController {
                 card.addArrangedSubview(stepTitle)
                 card.addArrangedSubview(routeLineView)
                 card.addArrangedSubview(routeRow)
+
+                if let placesRow {
+                    card.addArrangedSubview(placesRow)
+                }
+
                 card.addArrangedSubview(dateRow)
                 card.addArrangedSubview(detailsRow)
                 
@@ -671,7 +713,14 @@ final class TripDetailsViewController: UIViewController {
                     rightValue: step.to
                 )
             )
-            
+
+            if let placesRow = makePlacesRowIfNeeded(
+                departurePlace: step.departurePlace,
+                arrivalPlace: step.arrivalPlace
+            ) {
+                card.addArrangedSubview(placesRow)
+            }
+
             card.addArrangedSubview(
                 makeTwoColumnRow(
                     leftTitle: "Departure",
@@ -803,9 +852,9 @@ final class TripDetailsViewController: UIViewController {
             title: "Activities"
         )
         
+        let card = makeCardView()
+        
         if trip.activities.isEmpty {
-            let card = makeCardView()
-            
             let emptyLabel = UILabel()
             emptyLabel.text = "No activities yet"
             emptyLabel.font = .systemFont(ofSize: Layout.valueFontSize, weight: .semibold)
@@ -820,28 +869,45 @@ final class TripDetailsViewController: UIViewController {
             
             card.addArrangedSubview(emptyLabel)
             card.addArrangedSubview(subtitleLabel)
-            card.addArrangedSubview(makeSeparator())
-            card.addArrangedSubview(makeAddActivityButton())
-            
-            sectionStack.addArrangedSubview(card)
         } else {
-            activitiesListStackView.axis = .vertical
-            activitiesListStackView.spacing = 12
+            activitiesTableView.reloadData()
             
-            activitiesListStackView.arrangedSubviews.forEach { view in
-                activitiesListStackView.removeArrangedSubview(view)
-                view.removeFromSuperview()
+            let activitiesTableContainer = UIView()
+            activitiesTableContainer.clipsToBounds = false
+            activitiesTableContainer.addSubview(activitiesTableView)
+
+            activitiesTableView.translatesAutoresizingMaskIntoConstraints = false
+
+            NSLayoutConstraint.activate([
+                activitiesTableView.topAnchor.constraint(equalTo: activitiesTableContainer.topAnchor),
+                activitiesTableView.leadingAnchor.constraint(
+                    equalTo: activitiesTableContainer.leadingAnchor,
+                    constant: -12
+                ),
+                activitiesTableView.trailingAnchor.constraint(
+                    equalTo: activitiesTableContainer.trailingAnchor,
+                    constant: 12
+                ),
+                activitiesTableView.bottomAnchor.constraint(equalTo: activitiesTableContainer.bottomAnchor)
+            ])
+            
+            activitiesTableHeightConstraint?.isActive = false
+            activitiesTableHeightConstraint = activitiesTableContainer.heightAnchor.constraint(
+                equalToConstant: 1
+            )
+            activitiesTableHeightConstraint?.isActive = true
+
+            card.addArrangedSubview(activitiesTableContainer)
+            
+            DispatchQueue.main.async {
+                self.updateActivitiesTableHeight()
             }
-            
-            for activity in trip.activities {
-                let card = makeActivityCard(activity)
-                activitiesListStackView.addArrangedSubview(card)
-            }
-            
-            sectionStack.addArrangedSubview(activitiesListStackView)
-            sectionStack.addArrangedSubview(makeAddActivityButton())
         }
         
+        card.addArrangedSubview(makeSeparator())
+        card.addArrangedSubview(makeAddActivityButton())
+        
+        sectionStack.addArrangedSubview(card)
         stackView.addArrangedSubview(sectionStack)
     }
     
@@ -849,7 +915,8 @@ final class TripDetailsViewController: UIViewController {
         activitiesTableView.reloadData()
         activitiesTableView.layoutIfNeeded()
         
-        activitiesTableHeightConstraint?.constant = activitiesTableView.contentSize.height
+        let bottomInset = activitiesTableView.contentInset.bottom
+        activitiesTableHeightConstraint?.constant = activitiesTableView.contentSize.height + bottomInset + 12
     }
     
     private func openActivityDetails(_ activity: TripActivity) {
@@ -961,6 +1028,7 @@ final class TripDetailsViewController: UIViewController {
     }
     
     private func deleteActivity(_ activity: TripActivity) {
+        
         let updatedActivities = trip.activities.filter { $0.id != activity.id }
         
         let updatedTrip = Trip(
@@ -982,7 +1050,7 @@ final class TripDetailsViewController: UIViewController {
         trip = updatedTrip
         reloadDetails()
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             self.showToast(
                 "Activity deleted",
                 iconName: "trash.fill",
@@ -1217,95 +1285,6 @@ final class TripDetailsViewController: UIViewController {
         return container
     }
     
-    private func makeActivityCard(_ activity: TripActivity) -> UIView {
-        let card = UIStackView()
-        card.axis = .vertical
-        card.spacing = 6
-        card.layoutMargins = UIEdgeInsets(
-            top: 18,
-            left: 18,
-            bottom: 18,
-            right: 18
-        )
-        card.isLayoutMarginsRelativeArrangement = true
-        card.backgroundColor = .cardBackground
-        card.layer.cornerRadius = 18
-        card.layer.shadowColor = UIColor.black.cgColor
-        card.layer.shadowOpacity = 0.06
-        card.layer.shadowOffset = CGSize(width: 0, height: 4)
-        card.layer.shadowRadius = 12
-        
-        let titleLabel = UILabel()
-        titleLabel.text = activity.title
-        titleLabel.font = .systemFont(ofSize: 17, weight: .bold)
-        titleLabel.textColor = .label
-        titleLabel.numberOfLines = 0
-        
-        let dateLabel = UILabel()
-        if activity.hasTime {
-            dateLabel.text = "\(activity.date.tripDateString) · \(activity.time.tripTimeString)"
-        } else {
-            dateLabel.text = activity.date.tripDateString
-        }
-        dateLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        dateLabel.textColor = .secondaryLabel
-        
-        let locationLabel = UILabel()
-        let location = activity.location.trimmingCharacters(in: .whitespacesAndNewlines)
-        locationLabel.text = location.isEmpty ? "No location" : location
-        locationLabel.font = .systemFont(ofSize: 14, weight: .medium)
-        locationLabel.textColor = .secondaryLabel
-        locationLabel.numberOfLines = 0
-        
-        card.addArrangedSubview(titleLabel)
-        card.addArrangedSubview(dateLabel)
-        card.addArrangedSubview(locationLabel)
-        
-        if activity.hasRouteDetails {
-            let routeLabel = UILabel()
-            
-            let from = activity.routeDetails.from.trimmingCharacters(in: .whitespacesAndNewlines)
-            let to = activity.routeDetails.to.trimmingCharacters(in: .whitespacesAndNewlines)
-            let transport = activity.routeDetails.displayType
-            
-            if from.isEmpty && to.isEmpty {
-                routeLabel.text = transport
-            } else {
-                routeLabel.text = "\(transport) · \(from) → \(to)"
-            }
-            
-            routeLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-            routeLabel.textColor = .label
-            routeLabel.numberOfLines = 0
-            
-            card.addArrangedSubview(routeLabel)
-        }
-        
-        card.isUserInteractionEnabled = true
-        
-        let tapGesture = UITapGestureRecognizer(
-            target: self,
-            action: #selector(activityCardTapped(_:))
-        )
-        
-        card.addGestureRecognizer(tapGesture)
-        card.tag = activity.id.hashValue
-        
-        return card
-    }
-    
-    @objc private func activityCardTapped(_ sender: UITapGestureRecognizer) {
-        guard let view = sender.view else {
-            return
-        }
-        
-        guard let activity = trip.activities.first(where: { $0.id.hashValue == view.tag }) else {
-            return
-        }
-        
-        openActivityDetails(activity)
-    }
-    
     @objc private func addActivityTapped() {
         let addActivityViewController = AddActivityViewController()
         
@@ -1428,6 +1407,26 @@ final class TripDetailsViewController: UIViewController {
         rowStack.addArrangedSubview(rightBlock)
         
         return rowStack
+    }
+    
+    private func makePlacesRowIfNeeded(
+        departurePlace: String,
+        arrivalPlace: String
+    ) -> UIView? {
+        let departure = departurePlace.trimmingCharacters(in: .whitespacesAndNewlines)
+        let arrival = arrivalPlace.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !departure.isEmpty || !arrival.isEmpty else {
+            return nil
+        }
+        
+        return makeTwoColumnRow(
+            leftTitle: "From place",
+            leftValue: departure.isEmpty ? "Not specified" : departure,
+            rightTitle: "To place",
+            rightValue: arrival.isEmpty ? "Not specified" : arrival,
+            useMutedBackground: true
+        )
     }
     
     private func makeInfoBlock(
@@ -1690,6 +1689,32 @@ extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate 
     
     func tableView(
         _ tableView: UITableView,
+        estimatedHeightForRowAt indexPath: IndexPath
+    ) -> CGFloat {
+        if tableView == activitiesTableView {
+            return 72
+        }
+        
+        return 46
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
+        heightForRowAt indexPath: IndexPath
+    ) -> CGFloat {
+        if tableView == activitiesTableView {
+            return UITableView.automaticDimension
+        }
+        
+        if tableView == checklistTableView {
+            return 46
+        }
+        
+        return UITableView.automaticDimension
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
         cellForRowAt indexPath: IndexPath
     ) -> UITableViewCell {
         if tableView == activitiesTableView {
@@ -1699,10 +1724,16 @@ extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate 
             ) as? ActivityTableViewCell
             
             cell?.configure(with: trip.activities[indexPath.row])
-            
+                        
             cell?.backgroundColor = .clear
             cell?.contentView.backgroundColor = .clear
+            cell?.selectedBackgroundView = UIView()
+            cell?.selectedBackgroundView?.backgroundColor = .clear
             cell?.selectionStyle = .none
+            
+            if #available(iOS 14.0, *) {
+                cell?.backgroundConfiguration = .clear()
+            }
             
             return cell ?? UITableViewCell()
         }
@@ -1792,6 +1823,21 @@ extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate 
     
     func tableView(
         _ tableView: UITableView,
+        willDisplay cell: UITableViewCell,
+        forRowAt indexPath: IndexPath
+    ) {
+        cell.backgroundColor = .clear
+        cell.contentView.backgroundColor = .clear
+        cell.selectedBackgroundView = UIView()
+        cell.selectedBackgroundView?.backgroundColor = .clear
+        
+        if #available(iOS 14.0, *) {
+            cell.backgroundConfiguration = .clear()
+        }
+    }
+    
+    func tableView(
+        _ tableView: UITableView,
         didSelectRowAt indexPath: IndexPath
     ) {
         if tableView == activitiesTableView {
@@ -1851,23 +1897,23 @@ extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate 
         guard tableView == activitiesTableView else {
             return nil
         }
-        
+
         let activity = trip.activities[indexPath.row]
-        
+
         let editAction = UIContextualAction(
             style: .normal,
-            title: "Edit"
+            title: nil
         ) { [weak self] _, _, completion in
             self?.openEditActivity(activity)
             completion(true)
         }
-        
+
         editAction.backgroundColor = .systemBlue
         editAction.image = UIImage(systemName: "pencil")
-        
+
         let deleteAction = UIContextualAction(
             style: .destructive,
-            title: "Delete"
+            title: nil
         ) { [weak self] _, _, completion in
             guard let self else {
                 completion(false)
@@ -1877,15 +1923,16 @@ extension TripDetailsViewController: UITableViewDataSource, UITableViewDelegate 
             self.confirmDeleteActivity(activity)
             completion(true)
         }
-        
-        deleteAction.image = UIImage(systemName: "trash")
-        
+
+        deleteAction.backgroundColor = .systemRed
+        deleteAction.image = UIImage(systemName: "trash.fill")
+
         let configuration = UISwipeActionsConfiguration(
             actions: [deleteAction, editAction]
         )
-        
+
         configuration.performsFirstActionWithFullSwipe = true
-        
+
         return configuration
     }
 }
